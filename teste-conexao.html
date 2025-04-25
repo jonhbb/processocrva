@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Conexão</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Teste de Conexão com o Banco de Dados</h1>
+    <div id="resultado"></div>
+
+    <script type="module">
+        import { testarConexao } from './js/supabase.js';
+
+        async function executarTeste() {
+            const resultado = document.getElementById('resultado');
+            resultado.innerHTML = 'Testando conexão...';
+
+            try {
+                const teste = await testarConexao();
+                if (teste.success) {
+                    resultado.innerHTML = `
+                        <div style="color: green;">
+                            <h3>Conexão bem-sucedida!</h3>
+                            <p>${teste.message}</p>
+                        </div>
+                    `;
+                } else {
+                    resultado.innerHTML = `
+                        <div style="color: red;">
+                            <h3>Erro na conexão!</h3>
+                            <p>${teste.message}</p>
+                            <p>Detalhes do erro: ${teste.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultado.innerHTML = `
+                    <div style="color: red;">
+                        <h3>Erro ao executar teste!</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        executarTeste();
+    </script>
+</body>
+</html> 
