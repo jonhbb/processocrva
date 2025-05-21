@@ -78,6 +78,7 @@ function coletarDadosProcesso() {
         numeroProcesso: document.getElementById('numeroProcesso').value,
         dataInicial: document.getElementById('dataInicial').value,
         requerente: document.getElementById('requerente').value,
+        contato: document.getElementById('contato').value,
         tipoVeiculo: document.getElementById('tipoVeiculo').value,
         placa: document.getElementById('placa').value.toUpperCase(),
         status: document.getElementById('status').value,
