@@ -82,7 +82,8 @@ function coletarDadosProcesso() {
         tipoVeiculo: document.getElementById('tipoVeiculo').value,
         placa: document.getElementById('placa').value.toUpperCase(),
         status: document.getElementById('status').value,
-        motivoPendencia: document.getElementById('motivoPendencia').value
+        motivoPendencia: document.getElementById('motivoPendencia').value,
+        localizacaoFisica: document.getElementById('localizacaoFisica').value
     };
 }
 
@@ -100,7 +101,7 @@ function exibirProcessos(processos) {
             // Exibição na página de pesquisa (com todas as colunas)
             tr.innerHTML = `
                 <td>${processo.numeroProcesso || '-'}</td>
-                <td>${processo.dataInicial}</td>
+                <td>${formatarDataBR(processo.dataInicial)}</td>
                 <td>${processo.requerente}</td>
                 <td>${processo.contato || '-'}</td>
                 <td>${processo.tipoVeiculo}</td>
@@ -123,7 +124,7 @@ function exibirProcessos(processos) {
             // Exibição em outras páginas (sem as colunas adicionais)
             tr.innerHTML = `
                 <td>${processo.numeroProcesso || '-'}</td>
-                <td>${processo.dataInicial}</td>
+                <td>${formatarDataBR(processo.dataInicial)}</td>
                 <td>${processo.requerente}</td>
                 <td>${processo.contato || '-'}</td>
                 <td>${processo.tipoVeiculo}</td>
@@ -255,7 +256,7 @@ async function atualizarDashboard() {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${processo.numeroProcesso}</td>
-                <td>${processo.dataInicial}</td>
+                <td>${formatarDataBR(processo.dataInicial)}</td>
                 <td>${processo.requerente}</td>
                 <td>${processo.tipoVeiculo}</td>
                 <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
@@ -382,7 +383,7 @@ async function gerarRelatorio(processos, titulo) {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${processo.numeroProcesso || '-'}</td>
-                <td>${processo.dataInicial}</td>
+                <td>${formatarDataBR(processo.dataInicial)}</td>
                 <td>${processo.requerente}</td>
                 <td>${processo.contato || '-'}</td>
                 <td>${processo.tipoVeiculo}</td>
@@ -605,6 +606,12 @@ function exportarRelatorioExcel(processos, titulo) {
     link.href = URL.createObjectURL(blob);
     link.download = `relatorio_processos_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+}
+
+function formatarDataBR(dataISO) {
+    if (!dataISO) return '';
+    const [ano, mes, dia] = dataISO.split('-');
+    return `${dia}-${mes}-${ano}`;
 }
 
 // Event Listeners
