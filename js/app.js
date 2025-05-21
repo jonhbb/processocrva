@@ -102,6 +102,7 @@ function exibirProcessos(processos) {
                 <td>${processo.numeroProcesso || '-'}</td>
                 <td>${processo.dataInicial}</td>
                 <td>${processo.requerente}</td>
+                <td>${processo.contato || '-'}</td>
                 <td>${processo.tipoVeiculo}</td>
                 <td>${processo.placa}</td>
                 <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
@@ -124,6 +125,7 @@ function exibirProcessos(processos) {
                 <td>${processo.numeroProcesso || '-'}</td>
                 <td>${processo.dataInicial}</td>
                 <td>${processo.requerente}</td>
+                <td>${processo.contato || '-'}</td>
                 <td>${processo.tipoVeiculo}</td>
                 <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
             `;
@@ -184,6 +186,7 @@ window.abrirModalEditar = function(processoId) {
         document.getElementById('editarNumeroProcesso').value = processo.numeroProcesso || '';
         document.getElementById('editarDataInicial').value = processo.dataInicial;
         document.getElementById('editarRequerente').value = processo.requerente;
+        document.getElementById('editarContato').value = processo.contato || '';
         document.getElementById('editarTipoVeiculo').value = processo.tipoVeiculo;
         document.getElementById('editarPlaca').value = processo.placa;
         document.getElementById('editarStatus').value = processo.status;
@@ -207,6 +210,7 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
         numeroProcesso: document.getElementById('editarNumeroProcesso').value,
         dataInicial: document.getElementById('editarDataInicial').value,
         requerente: document.getElementById('editarRequerente').value,
+        contato: document.getElementById('editarContato').value,
         tipoVeiculo: document.getElementById('editarTipoVeiculo').value,
         placa: document.getElementById('editarPlaca').value,
         status: document.getElementById('editarStatus').value,
@@ -380,6 +384,7 @@ async function gerarRelatorio(processos, titulo) {
                 <td>${processo.numeroProcesso || '-'}</td>
                 <td>${processo.dataInicial}</td>
                 <td>${processo.requerente}</td>
+                <td>${processo.contato || '-'}</td>
                 <td>${processo.tipoVeiculo}</td>
                 <td>${processo.placa}</td>
                 <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
