@@ -108,7 +108,7 @@ function exibirProcessos(processos) {
                 <td>${processo.placa}</td>
                 <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
                 <td>${processo.motivoPendencia || '-'}</td>
-                <td>${processo.localizacaoFisica || '-'}</td>
+                <td><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${processo.localizacaoFisica || '-'}</span></td>
                 <td>
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${processo.id})">
@@ -346,6 +346,15 @@ function getStatusColor(status) {
             return 'danger';
         case 'Cancelado':
             return 'warning';
+        default:
+            return 'secondary';
+    }
+}
+
+function getLocalizacaoColor(localizacao) {
+    switch (localizacao) {
+        case 'Processo finalizado':
+            return 'success';
         default:
             return 'secondary';
     }
