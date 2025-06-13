@@ -14,12 +14,7 @@ import {
 function validarPlaca(placa) {
     // Remove espaços e converte para maiúsculas
     placa = placa.trim().toUpperCase();
-    
-    // Padrão para placas antigas (ABC1234) e Mercosul (ABC1A23)
-    const padraoAntigo = /^[A-Z]{3}[0-9]{4}$/;
-    const padraoMercosul = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
-    
-    return padraoAntigo.test(placa) || padraoMercosul.test(placa);
+    return placa.length > 0; // Aceita qualquer formato, desde que não seja vazio
 }
 
 function validarData(data) {
@@ -81,6 +76,7 @@ function coletarDadosProcesso() {
         contato: document.getElementById('contato').value,
         tipoVeiculo: document.getElementById('tipoVeiculo').value,
         placa: document.getElementById('placa').value.toUpperCase(),
+        chassi: document.getElementById('chassi').value.toUpperCase(),
         status: document.getElementById('status').value,
         motivoPendencia: document.getElementById('motivoPendencia').value,
         localizacaoFisica: document.getElementById('localizacaoFisica').value
@@ -190,6 +186,7 @@ window.abrirModalEditar = function(processoId) {
         document.getElementById('editarContato').value = processo.contato || '';
         document.getElementById('editarTipoVeiculo').value = processo.tipoVeiculo;
         document.getElementById('editarPlaca').value = processo.placa;
+        document.getElementById('editarChassi').value = processo.chassi || '';
         document.getElementById('editarStatus').value = processo.status;
         document.getElementById('editarMotivoPendencia').value = processo.motivoPendencia || '';
         document.getElementById('editarLocalizacaoFisica').value = processo.localizacaoFisica || '';

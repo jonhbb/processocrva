@@ -20,6 +20,7 @@ async function adicionarProcesso(processo) {
             contato: processo.contato,
             tipo_veiculo: processo.tipoVeiculo,
             placa: processo.placa,
+            chassi: processo.chassi,
             status: processo.status,
             motivo_pendencia: processo.motivoPendencia,
             localizacao_fisica: processo.localizacaoFisica
@@ -59,6 +60,7 @@ async function atualizarProcesso(processo) {
             contato: processo.contato,
             tipo_veiculo: processo.tipoVeiculo,
             placa: processo.placa,
+            chassi: processo.chassi,
             status: processo.status,
             motivo_pendencia: processo.motivoPendencia,
             localizacao_fisica: processo.localizacaoFisica
@@ -130,6 +132,7 @@ async function buscarProcessoPorId(id) {
             contato: data.contato,
             tipoVeiculo: data.tipo_veiculo,
             placa: data.placa,
+            chassi: data.chassi,
             status: data.status,
             motivoPendencia: data.motivo_pendencia,
             localizacaoFisica: data.localizacao_fisica
@@ -172,6 +175,7 @@ async function buscarProcessos(filtros = {}) {
             contato: processo.contato,
             tipoVeiculo: processo.tipo_veiculo,
             placa: processo.placa,
+            chassi: processo.chassi,
             status: processo.status,
             motivoPendencia: processo.motivo_pendencia,
             localizacaoFisica: processo.localizacao_fisica
