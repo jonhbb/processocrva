@@ -651,11 +651,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const processo = coletarDadosProcesso();
             
-            // Validações
-            if (!validarPlaca(processo.placa)) {
-                mostrarMensagem('Formato de placa inválido. Use o formato ABC1234 ou ABC1A23', 'warning');
-                return;
-            }
+            // Placa agora é opcional; nenhuma validação bloqueante é aplicada
             
             if (!validarData(processo.dataInicial)) {
                 mostrarMensagem('Data inválida', 'warning');
