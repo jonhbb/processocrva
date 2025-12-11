@@ -1,0 +1,234 @@
+.wrapper {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+}
+
+#sidebar {
+    min-width: 250px;
+    max-width: 250px;
+    min-height: 100vh;
+    background: #343a40;
+    color: #fff;
+    transition: all 0.3s;
+}
+
+#sidebar.active {
+    margin-left: -250px;
+}
+
+#sidebar .sidebar-header {
+    padding: 20px;
+    background: #2c3136;
+}
+
+#sidebar ul.components {
+    padding: 20px 0;
+}
+
+#sidebar ul p {
+    color: #fff;
+    padding: 10px;
+}
+
+#sidebar ul li a {
+    padding: 10px;
+    font-size: 1.1em;
+    display: block;
+    color: #fff;
+    text-decoration: none;
+}
+
+#sidebar ul li a:hover {
+    color: #7386D5;
+    background: #fff;
+}
+
+#sidebar ul li.active > a {
+    color: #fff;
+    background: #6d7fcc;
+}
+
+#content {
+    width: 100%;
+    padding: 20px;
+    min-height: 100vh;
+    transition: all 0.3s;
+}
+
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
+
+@media (max-width: 768px) {
+    #sidebar {
+        margin-left: -250px;
+    }
+    #sidebar.active {
+        margin-left: 0;
+    }
+    #sidebarCollapse span {
+        display: none;
+    }
+}
+
+/* Estilos do Dashboard */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1rem;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+.card-title {
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.card-text {
+    margin-bottom: 0;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.table-responsive {
+    margin-top: 1rem;
+}
+
+.table th {
+    font-weight: 500;
+    border-top: none;
+}
+
+.badge {
+    padding: 0.5em 0.75em;
+    font-size: 0.875em;
+}
+
+/* Cores personalizadas para os cards */
+.bg-primary {
+    background-color: #4e73df !important;
+}
+
+.bg-success {
+    background-color: #1cc88a !important;
+}
+
+.bg-warning {
+    background-color: #f6c23e !important;
+}
+
+.bg-danger {
+    background-color: #e74a3b !important;
+}
+
+/* Animações para os cards */
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+/* Responsividade para os cards */
+@media (max-width: 768px) {
+    .col-md-3 {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Estilo para as tabelas do dashboard */
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.075);
+    cursor: pointer;
+}
+
+.table-sm td, .table-sm th {
+    padding: 0.5rem;
+}
+
+/* Estilo para os percentuais */
+td:last-child {
+    font-weight: 500;
+    color: #4e73df;
+}
+
+.btn-action {
+    margin-right: 5px;
+}
+
+.form-label {
+    font-weight: 500;
+}
+
+.btn-export {
+    margin-left: 10px;
+}
+
+/* Estilos para Relatórios */
+.card-title {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #34495e;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.badge {
+    padding: 0.5em 0.75em;
+    font-size: 0.875em;
+}
+
+.btn-export {
+    margin-left: 0.5rem;
+}
+
+.table-responsive {
+    margin-top: 1rem;
+    border-radius: 0.25rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Animações para os cards de relatório */
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Responsividade para os relatórios */
+@media (max-width: 768px) {
+    .col-md-4 {
+        margin-bottom: 1rem;
+    }
+    
+    .btn-export {
+        margin-top: 0.5rem;
+        margin-left: 0;
+    }
+} 

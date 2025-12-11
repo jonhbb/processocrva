@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRVA 0371 - Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+        }
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #198754;
+            color: white;
+            text-align: center;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 20px;
+        }
+        .card-body {
+            padding: 30px;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 10px;
+        }
+        .logo {
+            max-width: 150px;
+            margin-bottom: 20px;
+        }
+        .titulo-sistema {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #198754;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="titulo-sistema">Sistema de Processos Pendentes</h1>
+        <div class="login-container">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">CRVA 0371 - Tramandaí/RS</h4>
+                </div>
+                <div class="card-body">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="usuario" class="form-label">Usuário</label>
+                            <input type="text" class="form-control" id="usuario" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="senha" class="form-label">Senha</label>
+                            <input type="password" class="form-control" id="senha" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-login">
+                            <i class="fas fa-sign-in-alt"></i> Entrar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Mensagem -->
+    <div class="modal fade" id="modalMensagem" tabindex="-1" aria-labelledby="modalMensagemLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalMensagemTitulo">Mensagem do Sistema</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modalMensagemTexto" class="alert" role="alert">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        import { verificarLogin } from './js/auth.js';
+        import { testarConexao, verificarTabela } from './js/supabase.js';
+
+        // Função para mostrar mensagem
+        function mostrarMensagem(mensagem, tipo = 'danger') {
+            const modalMensagem = document.getElementById('modalMensagem');
+            const modalMensagemTexto = document.getElementById('modalMensagemTexto');
+            const modalMensagemTitulo = document.getElementById('modalMensagemTitulo');
+
+            modalMensagemTexto.className = `alert alert-${tipo}`;
+            modalMensagemTitulo.textContent = tipo === 'danger' ? 'Erro' : 'Sucesso';
+            modalMensagemTexto.textContent = mensagem;
+
+            const modal = new bootstrap.Modal(modalMensagem);
+            modal.show();
+        }
+
+        // Testar conexão ao carregar a página
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                console.log('Iniciando testes de conexão...');
+                
+                // Testa a conexão geral
+                const resultadoConexao = await testarConexao();
+                if (!resultadoConexao.success) {
+                    console.error('Erro na conexão com o banco:', resultadoConexao.error);
+                    mostrarMensagem('Erro na conexão com o banco de dados', 'danger');
+                    return;
+                }
+
+                // Verifica se a tabela de credenciais existe
+                const tabelaExiste = await verificarTabela('credenciais');
+                if (!tabelaExiste) {
+                    console.error('Tabela de credenciais não encontrada');
+                    mostrarMensagem('Erro: Tabela de credenciais não encontrada', 'danger');
+                    return;
+                }
+
+                console.log('Todos os testes de conexão passaram com sucesso!');
+            } catch (error) {
+                console.error('Erro ao testar conexão:', error);
+                mostrarMensagem('Erro ao conectar com o banco de dados', 'danger');
+            }
+        });
+
+        // Event listener para o formulário de login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const usuario = document.getElementById('usuario').value;
+            const senha = document.getElementById('senha').value;
+
+            console.log('Tentando fazer login com usuário:', usuario);
+
+            const usuarioEncontrado = await verificarLogin(usuario, senha);
+
+            if (usuarioEncontrado) {
+                console.log('Login bem-sucedido para:', usuario);
+                // Salva o usuário na sessão
+                sessionStorage.setItem('usuarioLogado', JSON.stringify(usuarioEncontrado));
+                // Redireciona para a página principal
+                window.location.href = 'dashboard.html';
+            } else {
+                console.log('Login falhou para:', usuario);
+                mostrarMensagem('Usuário ou senha inválidos');
+            }
+        });
+    </script>
+</body>
+</html> 

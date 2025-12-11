@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRVA 0371 - Controle de Processos Pendentes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <!-- Bibliotecas para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <!-- Biblioteca para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="sidebar-header">
+                <h3>CRVA 0371</h3>
+                <p>Tramandaí/RS</p>
+                <div class="user-info">
+                    <span id="nomeUsuario"></span>
+                    <button type="button" class="btn btn-sm btn-danger" id="btnLogout">
+                        <i class="fas fa-sign-out-alt"></i> Sair
+                    </button>
+                </div>
+            </div>
+
+            <ul class="list-unstyled components">
+                <li class="active">
+                    <a href="#" data-page="home">
+                        <i class="fas fa-home"></i> Página Inicial
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-page="cadastro">
+                        <i class="fas fa-plus-circle"></i> Cadastro de Processos
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-page="pesquisa">
+                        <i class="fas fa-search"></i> Pesquisa de Processos
+                    </a>
+                </li>
+                <li>
+                    <a href="#" data-page="credenciais">
+                        <i class="fas fa-user-lock"></i> Credenciais
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Page Content -->
+        <div id="content">
+            <div id="home" class="page active">
+                <h2 class="mb-4">Dashboard - Controle de Processos</h2>
+                
+                <!-- Cards de Resumo -->
+                <div class="row mb-4">
+                    <div class="col-md-2">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h5 class="card-title">Total de Processos</h5>
+                                <h2 class="card-text" id="totalProcessos">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <h5 class="card-title">Processos Aprovados</h5>
+                                <h2 class="card-text" id="processosAprovados">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body">
+                                <h5 class="card-title">Processos Reprovados</h5>
+                                <h2 class="card-text" id="processosReprovados">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <h5 class="card-title">Processos Cancelados</h5>
+                                <h2 class="card-text" id="processosCancelados">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <h5 class="card-title">Processos Finalizados</h5>
+                                <h2 class="card-text" id="processosFinalizados">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-secondary text-white">
+                            <div class="card-body">
+                                <h5 class="card-title">Processos Pendentes</h5>
+                                <h2 class="card-text" id="processosPendentes">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Últimos Processos -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Últimos Processos Cadastrados</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Data</th>
+                                                <th>Requerente</th>
+                                                <th>Veículo</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ultimosProcessos">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Distribuição por Status</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="distribuicaoStatus" class="list-group">
+                                    <!-- As informações serão preenchidas via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Distribuição por Tipo de Veículo</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="distribuicaoVeiculos" class="list-group">
+                                    <!-- As informações serão preenchidas via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opções de Backup -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Backup do Sistema</h5>
+                            </div>
+                            <div class="card-body">
+                                <button type="button" class="btn btn-primary me-2" id="btnBackup">
+                                    <i class="fas fa-download"></i> Realizar Backup
+                                </button>
+                                <button type="button" class="btn btn-warning" id="btnRestaurar">
+                                    <i class="fas fa-upload"></i> Restaurar Backup
+                                </button>
+                                <input type="file" id="inputRestaurar" accept=".json" style="display: none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relatórios Detalhados -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Relatórios Detalhados</h5>
+                                <div>
+                                    <button type="button" class="btn btn-secondary" id="btnLimparFiltros" data-bs-toggle="tooltip" title="Limpar todos os filtros">
+                                        <i class="fas fa-broom"></i> Limpar Filtros
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <!-- Relatório por Período -->
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-header bg-primary text-white">
+                                                <h6 class="card-title mb-0">
+                                                    <i class="fas fa-calendar-alt"></i> Relatório por Período
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <form id="formRelatorioPeriodo">
+                                                    <div class="mb-3">
+                                                        <label for="dataInicio" class="form-label">Data Início</label>
+                                                        <input type="date" class="form-control" id="dataInicio" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="dataFim" class="form-label">Data Fim</label>
+                                                        <input type="date" class="form-control" id="dataFim" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="statusPeriodo" class="form-label">Status (Opcional)</label>
+                                                        <select class="form-select" id="statusPeriodo">
+                                                            <option value="">Todos</option>
+                                                            <option value="Pendente">Pendente</option>
+                                                            <option value="Aprovado">Aprovado</option>
+                                                            <option value="Reprovado">Reprovado</option>
+                                                            <option value="Cancelado">Cancelado</option>
+                                                            <option value="Finalizado">Finalizado</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="d-grid gap-2">
+                                                        <button type="submit" class="btn btn-primary">
+                                                            <i class="fas fa-search"></i> Gerar Relatório
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Relatório por Status -->
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-header bg-success text-white">
+                                                <h6 class="card-title mb-0">
+                                                    <i class="fas fa-tasks"></i> Relatório por Status
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <form id="formRelatorioStatus">
+                                                    <div class="mb-3">
+                                                        <label for="statusRelatorio" class="form-label">Status</label>
+                                                        <select class="form-select" id="statusRelatorio" required>
+                                                            <option value="">Selecione...</option>
+                                                            <option value="Pendente">Pendente</option>
+                                                            <option value="Aprovado">Aprovado</option>
+                                                            <option value="Reprovado">Reprovado</option>
+                                                            <option value="Cancelado">Cancelado</option>
+                                                            <option value="Finalizado">Finalizado</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="tipoVeiculoStatus" class="form-label">Tipo de Veículo (Opcional)</label>
+                                                        <select class="form-select" id="tipoVeiculoStatus">
+                                                            <option value="">Todos</option>
+                                                            <option value="Automóvel">Automóvel</option>
+                                                            <option value="Motocicleta">Motocicleta</option>
+                                                            <option value="Caminhonete">Caminhonete</option>
+                                                            <option value="Caminhão">Caminhão</option>
+                                                            <option value="Reboque">Reboque</option>
+                                                            <option value="Trailer">Trailer</option>
+                                                            <option value="Ônibus">Ônibus</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="d-grid gap-2">
+                                                        <button type="submit" class="btn btn-success">
+                                                            <i class="fas fa-search"></i> Gerar Relatório
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Relatório por Tipo de Veículo -->
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-header bg-info text-white">
+                                                <h6 class="card-title mb-0">
+                                                    <i class="fas fa-car"></i> Relatório por Tipo de Veículo
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <form id="formRelatorioVeiculo">
+                                                    <div class="mb-3">
+                                                        <label for="tipoVeiculoRelatorio" class="form-label">Tipo de Veículo</label>
+                                                        <select class="form-select" id="tipoVeiculoRelatorio" required>
+                                                            <option value="">Selecione...</option>
+                                                            <option value="Automóvel">Automóvel</option>
+                                                            <option value="Motocicleta">Motocicleta</option>
+                                                            <option value="Caminhonete">Caminhonete</option>
+                                                            <option value="Caminhão">Caminhão</option>
+                                                            <option value="Reboque">Reboque</option>
+                                                            <option value="Trailer">Trailer</option>
+                                                            <option value="Ônibus">Ônibus</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="statusVeiculo" class="form-label">Status (Opcional)</label>
+                                                        <select class="form-select" id="statusVeiculo">
+                                                            <option value="">Todos</option>
+                                                            <option value="Pendente">Pendente</option>
+                                                            <option value="Aprovado">Aprovado</option>
+                                                            <option value="Reprovado">Reprovado</option>
+                                                            <option value="Cancelado">Cancelado</option>
+                                                            <option value="Finalizado">Finalizado</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="d-grid gap-2">
+                                                        <button type="submit" class="btn btn-info">
+                                                            <i class="fas fa-search"></i> Gerar Relatório
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Resultado do Relatório -->
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">Resultado do Relatório</h6>
+                                                <div class="btn-group">
+                                                    <button type="button" class="btn btn-sm btn-success" id="btnExportarPDF">
+                                                        <i class="fas fa-file-pdf"></i> PDF
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-primary" id="btnExportarExcel">
+                                                        <i class="fas fa-file-excel"></i> Excel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-striped table-hover" id="tabelaRelatorio">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Número do Processo</th>
+                                                                <th>Data</th>
+                                                                <th>Requerente</th>
+                                                                <th>Contato</th>
+                                                                <th>Veículo</th>
+                                                                <th>Placa</th>
+                                                                <th>Status</th>
+                                                                <th>Motivo da Pendência</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="corpoRelatorio">
+                                                        </tbody>
+                                                        <tfoot>
+                                                            <tr>
+                                                                <td colspan="7">
+                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                        <div>
+                                                                            Total de registros: <span id="totalRegistros">0</span>
+                                                                        </div>
+                                                                        <div class="btn-group">
+                                                                            <button class="btn btn-sm btn-outline-primary" id="btnAnterior" disabled>
+                                                                                <i class="fas fa-chevron-left"></i> Anterior
+                                                                            </button>
+                                                                            <button class="btn btn-sm btn-outline-secondary" disabled>
+                                                                                Página <span id="paginaAtual">1</span>
+                                                                            </button>
+                                                                            <button class="btn btn-sm btn-outline-primary" id="btnProximo" disabled>
+                                                                                Próximo <i class="fas fa-chevron-right"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="cadastro" class="page">
+                <h2>Cadastro de Processos</h2>
+                <form id="processoForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="numeroProcesso" class="form-label">Número do Processo</label>
+                            <input type="text" class="form-control" id="numeroProcesso">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="dataInicial" class="form-label">Data Inicial</label>
+                            <input type="date" class="form-control" id="dataInicial">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="requerente" class="form-label">Requerente</label>
+                            <input type="text" class="form-control" id="requerente">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="contato" class="form-label">Contato</label>
+                            <input type="text" class="form-control" id="contato">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="chassi" class="form-label">Chassi</label>
+                            <input type="text" class="form-control" id="chassi">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="tipoVeiculo" class="form-label">Tipo de Veículo</label>
+                            <select class="form-select" id="tipoVeiculo">
+                                <option value="">Selecione...</option>
+                                <option value="Automóvel">Automóvel</option>
+                                <option value="Motocicleta">Motocicleta</option>
+                                <option value="Caminhonete">Caminhonete</option>
+                                <option value="Caminhão">Caminhão</option>
+                                <option value="Reboque">Reboque</option>
+                                <option value="Trailer">Trailer</option>
+                                <option value="Ônibus">Ônibus</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="placa" class="form-label">Placa</label>
+                            <input type="text" class="form-control" id="placa">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" required>
+                                <option value="">Selecione...</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Aprovado">Aprovado</option>
+                                <option value="Reprovado">Reprovado</option>
+                                <option value="Cancelado">Cancelado</option>
+                                <option value="Finalizado">Finalizado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="motivoPendencia" class="form-label">Motivo da Pendência</label>
+                        <textarea class="form-control" id="motivoPendencia" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="localizacaoFisica" class="form-label">Localização Física do Processo</label>
+                        <select class="form-select" id="localizacaoFisica">
+                            <option value="">Selecione...</option>
+                            <option value="Pendentes">Pendentes</option>
+                            <option value="Perícia">Perícia</option>
+                            <option value="Arquivo Morto">Arquivo Morto</option>
+                            <option value="Vistoria Avulsa">Vistoria Avulsa</option>
+                            <option value="Processo finalizado">Processo finalizado</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Salvar Processo</button>
+                </form>
+            </div>
+
+            <div id="pesquisa" class="page">
+                <h2>Pesquisa de Processos</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <form id="pesquisaForm">
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label for="pesquisaNumero" class="form-label">Número do Processo</label>
+                                    <input type="text" class="form-control" id="pesquisaNumero">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="pesquisaPlaca" class="form-label">Placa</label>
+                                    <input type="text" class="form-control" id="pesquisaPlaca">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="pesquisaTipoVeiculo" class="form-label">Tipo de Veículo</label>
+                                    <select class="form-select" id="pesquisaTipoVeiculo">
+                                        <option value="">Todos</option>
+                                        <option value="Automóvel">Automóvel</option>
+                                        <option value="Motocicleta">Motocicleta</option>
+                                        <option value="Caminhonete">Caminhonete</option>
+                                        <option value="Caminhão">Caminhão</option>
+                                        <option value="Reboque">Reboque</option>
+                                        <option value="Trailer">Trailer</option>
+                                        <option value="Ônibus">Ônibus</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="pesquisaStatus" class="form-label">Status</label>
+                                    <select class="form-select" id="pesquisaStatus">
+                                        <option value="">Todos</option>
+                                        <option value="Pendente">Pendente</option>
+                                        <option value="Reprovado">Reprovado</option>
+                                        <option value="Cancelado">Cancelado</option>
+                                        <option value="Aprovado">Aprovado</option>
+                                        <option value="Finalizado">Finalizado</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Pesquisar</button>
+                            <button type="button" class="btn btn-secondary" id="exportarCSV">Exportar CSV</button>
+                            <button type="button" class="btn btn-secondary" id="exportarPDF">Exportar PDF</button>
+                        </form>
+                    </div>
+                </div>
+                <div id="resultadosPesquisa">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Data</th>
+                                <th>Requerente</th>
+                                <th>Contato</th>
+                                <th>Veículo</th>
+                                <th>Placa</th>
+                                <th>Status</th>
+                                <th>Motivo da Pendência</th>
+                                <th>Localização Física</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaResultados">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="credenciais" class="page">
+                <h2>Credenciais</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <form id="formCredenciais" onsubmit="return false;">
+                            <div class="mb-3">
+                                <label for="nomeColaborador" class="form-label">Nome do Colaborador</label>
+                                <input type="text" class="form-control" id="nomeColaborador" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="usuarioCredencial" class="form-label">Usuário</label>
+                                <input type="text" class="form-control" id="usuarioCredencial" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="senhaCredencial" class="form-label">Senha</label>
+                                <input type="password" class="form-control" id="senhaCredencial" required>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="btnSalvarCredencial">Salvar</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Lista de Credenciais -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Credenciais Cadastradas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Nome do Colaborador</th>
+                                        <th>Usuário</th>
+                                        <th>Data de Criação</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaCredenciais">
+                                    <!-- As credenciais serão carregadas aqui via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Alteração de Status -->
+    <div class="modal fade" id="modalAlterarStatus" tabindex="-1" aria-labelledby="modalAlterarStatusLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAlterarStatusLabel">Alterar Status do Processo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAlterarStatus">
+                        <input type="hidden" id="processoId">
+                        <div class="mb-3">
+                            <label for="novoStatus" class="form-label">Novo Status</label>
+                            <select class="form-select" id="novoStatus" required>
+                                <option value="">Selecione...</option>
+                                <option value="Pendente">Pendente</option>
+                                <option value="Reprovado">Reprovado</option>
+                                <option value="Cancelado">Cancelado</option>
+                                <option value="Aprovado">Aprovado</option>
+                                <option value="Finalizado">Finalizado</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarStatus">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Alteração de Número -->
+    <div class="modal fade" id="modalAlterarNumero" tabindex="-1" aria-labelledby="modalAlterarNumeroLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAlterarNumeroLabel">Alterar Número do Processo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAlterarNumero">
+                        <input type="hidden" id="processoIdNumero">
+                        <div class="mb-3">
+                            <label for="novoNumero" class="form-label">Novo Número do Processo</label>
+                            <input type="text" class="form-control" id="novoNumero" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarNumero">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Histórico -->
+    <div class="modal fade" id="modalHistorico" tabindex="-1" aria-labelledby="modalHistoricoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalHistoricoLabel">Histórico do Processo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Status</th>
+                                    <th>Responsável</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaHistorico">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Mensagem do Sistema -->
+    <div class="modal fade" id="modalMensagem" tabindex="-1" aria-labelledby="modalMensagemLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalMensagemTitulo">Mensagem do Sistema</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modalMensagemTexto" class="alert" role="alert">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalEditarLabel">Editar Processo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditar">
+                        <input type="hidden" id="editarProcessoId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editarNumeroProcesso" class="form-label">Número do Processo</label>
+                                <input type="text" class="form-control" id="editarNumeroProcesso">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editarDataInicial" class="form-label">Data Inicial</label>
+                                <input type="date" class="form-control" id="editarDataInicial" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editarRequerente" class="form-label">Requerente</label>
+                                <input type="text" class="form-control" id="editarRequerente" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editarContato" class="form-label">Contato</label>
+                                <input type="text" class="form-control" id="editarContato">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editarChassi" class="form-label">Chassi</label>
+                                <input type="text" class="form-control" id="editarChassi">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editarTipoVeiculo" class="form-label">Tipo de Veículo</label>
+                                <select class="form-select" id="editarTipoVeiculo" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Automóvel">Automóvel</option>
+                                    <option value="Motocicleta">Motocicleta</option>
+                                    <option value="Caminhonete">Caminhonete</option>
+                                    <option value="Caminhão">Caminhão</option>
+                                    <option value="Reboque">Reboque</option>
+                                    <option value="Trailer">Trailer</option>
+                                    <option value="Ônibus">Ônibus</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editarPlaca" class="form-label">Placa</label>
+                                <input type="text" class="form-control" id="editarPlaca">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editarStatus" class="form-label">Status</label>
+                                <select class="form-select" id="editarStatus" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Pendente">Pendente</option>
+                                    <option value="Aprovado">Aprovado</option>
+                                    <option value="Reprovado">Reprovado</option>
+                                    <option value="Cancelado">Cancelado</option>
+                                    <option value="Finalizado">Finalizado</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editarMotivoPendencia" class="form-label">Motivo da Pendência</label>
+                            <textarea class="form-control" id="editarMotivoPendencia" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editarLocalizacaoFisica" class="form-label">Localização Física do Processo</label>
+                            <select class="form-select" id="editarLocalizacaoFisica">
+                                <option value="">Selecione...</option>
+                                <option value="Pendentes">Pendentes</option>
+                                <option value="Perícia">Perícia</option>
+                                <option value="Arquivo Morto">Arquivo Morto</option>
+                                <option value="Vistoria Avulsa">Vistoria Avulsa</option>
+                                <option value="Processo finalizado">Processo finalizado</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarEdicao">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        import { verificarSessao, fazerLogout } from './js/auth.js';
+        
+        window.supabase = { createClient };
+
+        // Função para verificar autenticação
+        function verificarAutenticacao() {
+            if (!verificarSessao()) {
+                console.log('Usuário não autenticado, redirecionando para login...');
+                window.location.replace('index.html');
+                return;
+            }
+
+            // Mostra o nome do usuário
+            const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+            document.getElementById('nomeUsuario').textContent = usuarioLogado.nome;
+        }
+
+        // Verifica autenticação ao carregar a página
+        verificarAutenticacao();
+
+        // Função para fazer logout
+        window.handleLogout = function() {
+            console.log('Botão de logout clicado');
+            sessionStorage.removeItem('usuarioLogado');
+            window.location.href = 'index.html';
+        };
+
+        // Event listener para o botão de logout
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnLogout = document.getElementById('btnLogout');
+            if (btnLogout) {
+                btnLogout.onclick = window.handleLogout;
+                console.log('Event listener adicionado ao botão de logout');
+            } else {
+                console.error('Botão de logout não encontrado');
+            }
+        });
+    </script>
+    <script type="module" src="js/supabase.js"></script>
+    <script type="module" src="js/app.js"></script>
+    <script type="module">
+        import { criarCredencial, verificarUsuarioExistente, listarCredenciais, atualizarCredencial, testarConexaoCredenciais } from './js/credenciais.js';
+
+        // Função para mostrar mensagem
+        window.mostrarMensagem = function(mensagem, tipo = 'info') {
+            const modalMensagem = document.getElementById('modalMensagem');
+            const modalMensagemTexto = document.getElementById('modalMensagemTexto');
+            const modalMensagemTitulo = document.getElementById('modalMensagemTitulo');
+
+            modalMensagemTexto.className = `alert alert-${tipo}`;
+            modalMensagemTitulo.textContent = tipo === 'danger' ? 'Erro' : 'Sucesso';
+            modalMensagemTexto.textContent = mensagem;
+
+            const modal = new bootstrap.Modal(modalMensagem);
+            modal.show();
+        };
+
+        // Função para testar conexão
+        async function testarConexao() {
+            try {
+                const resultado = await testarConexaoCredenciais();
+                
+                if (resultado.success) {
+                    if (resultado.data && resultado.data.length > 0) {
+                        console.log(`Dados encontrados: ${JSON.stringify(resultado.data)}`, 'info');
+                    }
+                } else {
+                    console.error(`Erro: ${resultado.message}`, 'danger');
+                }
+            } catch (error) {
+                console.error(`Erro ao testar conexão: ${error.message}`, 'danger');
+            }
+        }
+
+        // Função para salvar credencial
+        async function salvarCredencial() {
+            const nomeColaborador = document.getElementById('nomeColaborador').value;
+            const usuario = document.getElementById('usuarioCredencial').value;
+            const senha = document.getElementById('senhaCredencial').value;
+
+            // Verificar se o usuário já existe
+            const { success: checkSuccess, exists } = await verificarUsuarioExistente(usuario);
+            
+            if (checkSuccess && exists) {
+                mostrarMensagem('Este usuário já existe no sistema', 'danger');
+                return;
+            }
+
+            // Criar nova credencial
+            const { success, error } = await criarCredencial(nomeColaborador, usuario, senha);
+
+            if (success) {
+                mostrarMensagem('Credencial criada com sucesso!', 'success');
+                document.getElementById('formCredenciais').reset();
+                carregarCredenciais();
+            } else {
+                mostrarMensagem(`Erro ao criar credencial: ${error}`, 'danger');
+            }
+        }
+
+        // Event listener para o botão salvar
+        document.getElementById('btnSalvarCredencial').addEventListener('click', salvarCredencial);
+
+        // Função para carregar a lista de credenciais
+        async function carregarCredenciais() {
+            const { success, data } = await listarCredenciais();
+            const tbody = document.getElementById('tabelaCredenciais');
+            tbody.innerHTML = '';
+
+            if (success && data) {
+                data.forEach(credencial => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${credencial.nome_colaborador}</td>
+                        <td>${credencial.usuario}</td>
+                        <td>${new Date(credencial.data_criacao).toLocaleDateString()}</td>
+                        <td>
+                            <span class="badge ${credencial.status === 'ativo' ? 'bg-success' : 'bg-danger'}">
+                                ${credencial.status}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm ${credencial.status === 'ativo' ? 'btn-danger' : 'btn-success'}"
+                                    onclick="alterarStatusCredencial(${credencial.id}, '${credencial.status}')">
+                                ${credencial.status === 'ativo' ? 'Inativar' : 'Ativar'}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+
+        // Função para alterar o status da credencial
+        window.alterarStatusCredencial = async function(id, statusAtual) {
+            const novoStatus = statusAtual === 'ativo' ? 'inativo' : 'ativo';
+            const { success } = await atualizarCredencial(id, { status: novoStatus });
+            
+            if (success) {
+                mostrarMensagem(`Credencial ${novoStatus === 'ativo' ? 'ativada' : 'inativada'} com sucesso!`, 'success');
+                carregarCredenciais();
+            } else {
+                mostrarMensagem('Erro ao alterar status da credencial', 'danger');
+            }
+        };
+
+        // Carregar credenciais ao abrir a página
+        document.addEventListener('DOMContentLoaded', carregarCredenciais);
+    </script>
+</body>
+</html> 
