@@ -1,5 +1,5 @@
-// Importação do Supabase usando módulos ES6
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// Importação do Supabase usando módulos ES6 - versão específica
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 // Configuração do Supabase
 const SUPABASE_URL = 'https://hhqzqohaxrvgpnjnoubz.supabase.co';
