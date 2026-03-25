@@ -10,6 +10,10 @@ import {
     testarConexao
 } from './supabase.js';
 
+const ITENS_POR_PAGINA_PESQUISA = 10;
+let pesquisaProcessosCache = [];
+let pesquisaPaginaAtual = 1;
+
 // Funções de validação
 function validarPlaca(placa) {
     // Remove espaços e converte para maiúsculas
@@ -84,49 +88,90 @@ function coletarDadosProcesso() {
 }
 
 // Funções de exibição
+function criarLinhaTabelaPesquisa(processo) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>${processo.numeroProcesso || '-'}</td>
+        <td>${formatarDataBR(processo.dataInicial)}</td>
+        <td>${processo.requerente}</td>
+        <td>${processo.contato || '-'}</td>
+        <td>${processo.tipoVeiculo}</td>
+        <td>${processo.placa || '-'}</td>
+        <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
+        <td>${processo.motivoPendencia || '-'}</td>
+        <td><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${processo.localizacaoFisica || '-'}</span></td>
+        <td>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${processo.id})">
+                    <i class="fas fa-edit"></i> Editar
+                </button>
+                <button type="button" class="btn btn-sm btn-info" onclick="window.abrirModalHistorico(${processo.id})">
+                    <i class="fas fa-history"></i> Histórico
+                </button>
+            </div>
+        </td>
+    `;
+    return tr;
+}
+
+function renderizarTabelaPesquisaPaginada() {
+    const tbody = document.getElementById('tabelaResultados');
+    tbody.innerHTML = '';
+
+    const total = pesquisaProcessosCache.length;
+    const totalPaginas = total === 0 ? 1 : Math.ceil(total / ITENS_POR_PAGINA_PESQUISA);
+    if (pesquisaPaginaAtual > totalPaginas) {
+        pesquisaPaginaAtual = totalPaginas;
+    }
+    const inicio = (pesquisaPaginaAtual - 1) * ITENS_POR_PAGINA_PESQUISA;
+    const slice = pesquisaProcessosCache.slice(inicio, inicio + ITENS_POR_PAGINA_PESQUISA);
+
+    slice.forEach(processo => tbody.appendChild(criarLinhaTabelaPesquisa(processo)));
+
+    const nav = document.getElementById('pesquisaPaginacao');
+    if (!nav) return;
+
+    if (total === 0) {
+        nav.classList.add('d-none');
+        nav.classList.remove('d-flex');
+        const elTotal = document.getElementById('pesquisaTotalRegistros');
+        if (elTotal) elTotal.textContent = '0';
+        return;
+    }
+
+    nav.classList.remove('d-none');
+    nav.classList.add('d-flex');
+
+    document.getElementById('pesquisaTotalRegistros').textContent = String(total);
+    document.getElementById('pesquisaPaginaAtual').textContent = String(pesquisaPaginaAtual);
+    document.getElementById('pesquisaTotalPaginas').textContent = String(totalPaginas);
+    document.getElementById('btnPesquisaAnterior').disabled = pesquisaPaginaAtual <= 1;
+    document.getElementById('btnPesquisaProximo').disabled = pesquisaPaginaAtual >= totalPaginas;
+}
+
 function exibirProcessos(processos) {
     const tbody = document.getElementById('tabelaResultados');
     tbody.innerHTML = '';
 
-    // Verifica se está na página de pesquisa
     const isPesquisaPage = document.getElementById('pesquisa').classList.contains('active');
+
+    if (isPesquisaPage) {
+        pesquisaProcessosCache = Array.isArray(processos) ? processos : [];
+        pesquisaPaginaAtual = 1;
+        renderizarTabelaPesquisaPaginada();
+        return;
+    }
 
     processos.forEach(processo => {
         const tr = document.createElement('tr');
-        if (isPesquisaPage) {
-            // Exibição na página de pesquisa (com todas as colunas)
-            tr.innerHTML = `
-                <td>${processo.numeroProcesso || '-'}</td>
-                <td>${formatarDataBR(processo.dataInicial)}</td>
-                <td>${processo.requerente}</td>
-                <td>${processo.contato || '-'}</td>
-                <td>${processo.tipoVeiculo}</td>
-                <td>${processo.placa}</td>
-                <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
-                <td>${processo.motivoPendencia || '-'}</td>
-                <td><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${processo.localizacaoFisica || '-'}</span></td>
-                <td>
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${processo.id})">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button type="button" class="btn btn-sm btn-info" onclick="window.abrirModalHistorico(${processo.id})">
-                            <i class="fas fa-history"></i> Histórico
-                        </button>
-                    </div>
-                </td>
-            `;
-        } else {
-            // Exibição em outras páginas (sem as colunas adicionais)
-            tr.innerHTML = `
-                <td>${processo.numeroProcesso || '-'}</td>
-                <td>${formatarDataBR(processo.dataInicial)}</td>
-                <td>${processo.requerente}</td>
-                <td>${processo.contato || '-'}</td>
-                <td>${processo.tipoVeiculo}</td>
-                <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
-            `;
-        }
+        tr.innerHTML = `
+            <td>${processo.numeroProcesso || '-'}</td>
+            <td>${formatarDataBR(processo.dataInicial)}</td>
+            <td>${processo.requerente}</td>
+            <td>${processo.contato || '-'}</td>
+            <td>${processo.tipoVeiculo}</td>
+            <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
+        `;
         tbody.appendChild(tr);
     });
 }
@@ -217,12 +262,15 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
     };
 
     try {
+        window.mostrarLoading('Salvando alterações...');
         await atualizarProcesso(processo);
+        window.esconderLoading();
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditar'));
         modal.hide();
         mostrarMensagem('Processo atualizado com sucesso!');
         document.getElementById('pesquisaForm').dispatchEvent(new Event('submit'));
     } catch (error) {
+        window.esconderLoading();
         mostrarMensagem('Erro ao atualizar processo: ' + error, 'danger');
     }
 });
@@ -440,6 +488,7 @@ document.getElementById('formRelatorioPeriodo').addEventListener('submit', async
     const status = document.getElementById('statusPeriodo').value;
 
     try {
+        window.mostrarLoading('Gerando relatório...');
         let processos = await buscarProcessos({});
         
         // Filtra por período
@@ -455,7 +504,9 @@ document.getElementById('formRelatorioPeriodo').addEventListener('submit', async
 
         const titulo = `Relatório por Período: ${dataInicio} a ${dataFim}${status ? ` - Status: ${status}` : ''}`;
         await gerarRelatorio(processos, titulo);
+        window.esconderLoading();
     } catch (error) {
+        window.esconderLoading();
         mostrarMensagem('Erro ao gerar relatório: ' + error, 'danger');
     }
 });
@@ -466,6 +517,7 @@ document.getElementById('formRelatorioStatus').addEventListener('submit', async 
     const tipoVeiculo = document.getElementById('tipoVeiculoStatus').value;
 
     try {
+        window.mostrarLoading('Gerando relatório...');
         let processos = await buscarProcessos({ status });
         
         if (tipoVeiculo) {
@@ -474,7 +526,9 @@ document.getElementById('formRelatorioStatus').addEventListener('submit', async 
 
         const titulo = `Relatório por Status: ${status}${tipoVeiculo ? ` - Veículo: ${tipoVeiculo}` : ''}`;
         await gerarRelatorio(processos, titulo);
+        window.esconderLoading();
     } catch (error) {
+        window.esconderLoading();
         mostrarMensagem('Erro ao gerar relatório: ' + error, 'danger');
     }
 });
@@ -485,6 +539,7 @@ document.getElementById('formRelatorioVeiculo').addEventListener('submit', async
     const status = document.getElementById('statusVeiculo').value;
 
     try {
+        window.mostrarLoading('Gerando relatório...');
         let processos = await buscarProcessos({ tipoVeiculo });
         
         if (status) {
@@ -493,7 +548,9 @@ document.getElementById('formRelatorioVeiculo').addEventListener('submit', async
 
         const titulo = `Relatório por Tipo de Veículo: ${tipoVeiculo}${status ? ` - Status: ${status}` : ''}`;
         await gerarRelatorio(processos, titulo);
+        window.esconderLoading();
     } catch (error) {
+        window.esconderLoading();
         mostrarMensagem('Erro ao gerar relatório: ' + error, 'danger');
     }
 });
@@ -659,11 +716,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             try {
+                window.mostrarLoading('Salvando processo...');
                 await adicionarProcesso(processo);
+                window.esconderLoading();
                 mostrarMensagem('Processo cadastrado com sucesso!');
                 limparFormulario('processoForm');
                 atualizarDashboard();
             } catch (error) {
+                window.esconderLoading();
                 mostrarMensagem('Erro ao cadastrar processo: ' + error, 'danger');
             }
         });
@@ -680,10 +740,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
 
             try {
+                window.mostrarLoading('Pesquisando...');
                 const processos = await buscarProcessos(filtros);
+                window.esconderLoading();
                 exibirProcessos(processos);
             } catch (error) {
+                window.esconderLoading();
                 mostrarMensagem('Erro ao buscar processos: ' + error, 'danger');
+            }
+        });
+
+        document.getElementById('btnPesquisaAnterior').addEventListener('click', () => {
+            if (pesquisaPaginaAtual > 1) {
+                pesquisaPaginaAtual--;
+                renderizarTabelaPesquisaPaginada();
+            }
+        });
+
+        document.getElementById('btnPesquisaProximo').addEventListener('click', () => {
+            const totalPaginas = Math.max(1, Math.ceil(pesquisaProcessosCache.length / ITENS_POR_PAGINA_PESQUISA));
+            if (pesquisaPaginaAtual < totalPaginas) {
+                pesquisaPaginaAtual++;
+                renderizarTabelaPesquisaPaginada();
             }
         });
 
@@ -761,9 +839,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             try {
+                window.mostrarLoading('Alterando status...');
                 const processo = await buscarProcessoPorId(processoId);
                 processo.status = novoStatus;
                 await atualizarProcesso(processo);
+                window.esconderLoading();
                 
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalAlterarStatus'));
                 modal.hide();
@@ -772,6 +852,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('pesquisaForm').dispatchEvent(new Event('submit'));
                 atualizarDashboard();
             } catch (error) {
+                window.esconderLoading();
                 mostrarMensagem('Erro ao alterar status: ' + error, 'danger');
             }
         });
@@ -787,9 +868,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             try {
+                window.mostrarLoading('Atualizando número...');
                 const processo = await buscarProcessoPorId(processoId);
                 processo.numeroProcesso = novoNumero;
                 await atualizarProcesso(processo);
+                window.esconderLoading();
                 
                 const modal = bootstrap.Modal.getInstance(document.getElementById('modalAlterarNumero'));
                 modal.hide();
@@ -797,6 +880,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mostrarMensagem('Número do processo atualizado com sucesso!');
                 document.getElementById('pesquisaForm').dispatchEvent(new Event('submit'));
             } catch (error) {
+                window.esconderLoading();
                 mostrarMensagem('Erro ao alterar número do processo: ' + error, 'danger');
             }
         });
@@ -804,9 +888,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Event Listeners para Backup
         document.getElementById('btnBackup').addEventListener('click', async () => {
             try {
+                window.mostrarLoading('Gerando backup...');
                 await realizarBackup();
+                window.esconderLoading();
                 mostrarMensagem('Backup realizado com sucesso!', 'success');
             } catch (error) {
+                window.esconderLoading();
                 mostrarMensagem('Erro ao realizar backup: ' + error.message, 'danger');
             }
         });

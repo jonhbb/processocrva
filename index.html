@@ -10,6 +10,7 @@
     <style>
         body {
             background-color: #f8f9fa;
+            padding-bottom: 52px;
         }
         .login-container {
             max-width: 400px;
@@ -44,9 +45,33 @@
             color: #198754;
             font-weight: bold;
         }
+        .site-footer-login {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 16px;
+            text-align: center;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        #btnToggleSenha {
+            border-color: #ced4da;
+        }
+        #btnToggleSenha:hover {
+            background-color: #e9ecef;
+        }
     </style>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Carregando...</div>
+    </div>
+
     <div class="container">
         <h1 class="titulo-sistema">Sistema de Processos Pendentes</h1>
         <div class="login-container">
@@ -62,7 +87,12 @@
                         </div>
                         <div class="mb-3">
                             <label for="senha" class="form-label">Senha</label>
-                            <input type="password" class="form-control" id="senha" required>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="senha" name="senha" required autocomplete="current-password">
+                                <button type="button" class="btn btn-outline-secondary" id="btnToggleSenha" aria-label="Mostrar senha" title="Mostrar senha">
+                                    <i class="fas fa-eye" id="iconeToggleSenha" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary btn-login">
                             <i class="fas fa-sign-in-alt"></i> Entrar
@@ -72,6 +102,10 @@
             </div>
         </div>
     </div>
+
+    <footer class="site-footer-login">
+        <small>&copy; Desenvolvido por Jonatan Barros</small>
+    </footer>
 
     <!-- Modal de Mensagem -->
     <div class="modal fade" id="modalMensagem" tabindex="-1" aria-labelledby="modalMensagemLabel" aria-hidden="true">
@@ -139,6 +173,33 @@
             }
         });
 
+        function mostrarLoading(texto = 'Carregando...') {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.querySelector('.loading-text').textContent = texto;
+            overlay.classList.add('active');
+        }
+
+        function esconderLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        document.getElementById('btnToggleSenha').addEventListener('click', () => {
+            const input = document.getElementById('senha');
+            const icon = document.getElementById('iconeToggleSenha');
+            const btn = document.getElementById('btnToggleSenha');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+                btn.setAttribute('aria-label', 'Ocultar senha');
+                btn.setAttribute('title', 'Ocultar senha');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+                btn.setAttribute('aria-label', 'Mostrar senha');
+                btn.setAttribute('title', 'Mostrar senha');
+            }
+        });
+
         // Event listener para o formulário de login
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -146,18 +207,15 @@
             const usuario = document.getElementById('usuario').value;
             const senha = document.getElementById('senha').value;
 
-            console.log('Tentando fazer login com usuário:', usuario);
+            mostrarLoading('Verificando credenciais...');
 
             const usuarioEncontrado = await verificarLogin(usuario, senha);
 
             if (usuarioEncontrado) {
-                console.log('Login bem-sucedido para:', usuario);
-                // Salva o usuário na sessão
                 sessionStorage.setItem('usuarioLogado', JSON.stringify(usuarioEncontrado));
-                // Redireciona para a página principal
                 window.location.href = 'dashboard.html';
             } else {
-                console.log('Login falhou para:', usuario);
+                esconderLoading();
                 mostrarMensagem('Usuário ou senha inválidos');
             }
         });

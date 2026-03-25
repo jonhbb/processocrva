@@ -14,6 +14,18 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Carregando...</div>
+    </div>
+
+    <!-- Sidebar Toggle (mobile) -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <div class="wrapper">
         <!-- Sidebar -->
         <nav id="sidebar">
@@ -535,6 +547,22 @@
                         <tbody id="tabelaResultados">
                         </tbody>
                     </table>
+                    <div id="pesquisaPaginacao" class="d-none flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top">
+                        <div class="text-muted small">
+                            Total: <span id="pesquisaTotalRegistros">0</span> registro(s)
+                        </div>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnPesquisaAnterior" disabled>
+                                <i class="fas fa-chevron-left"></i> Anterior
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
+                                Página <span id="pesquisaPaginaAtual">1</span> de <span id="pesquisaTotalPaginas">1</span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnPesquisaProximo" disabled>
+                                Próximo <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -805,6 +833,52 @@
 
         // Verifica autenticação ao carregar a página
         verificarAutenticacao();
+
+        // --- Loading Overlay ---
+        window.mostrarLoading = function(texto = 'Carregando...') {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.querySelector('.loading-text').textContent = texto;
+            overlay.classList.add('active');
+        };
+
+        window.esconderLoading = function() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        };
+
+        // --- Sidebar Toggle (mobile) ---
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const backdrop = document.getElementById('sidebarBackdrop');
+
+            function abrirSidebar() {
+                sidebar.classList.add('active');
+                backdrop.classList.add('active');
+            }
+
+            function fecharSidebar() {
+                sidebar.classList.remove('active');
+                backdrop.classList.remove('active');
+            }
+
+            toggleBtn.addEventListener('click', function() {
+                if (sidebar.classList.contains('active')) {
+                    fecharSidebar();
+                } else {
+                    abrirSidebar();
+                }
+            });
+
+            backdrop.addEventListener('click', fecharSidebar);
+
+            document.querySelectorAll('#sidebar a').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        fecharSidebar();
+                    }
+                });
+            });
+        });
 
         // Função para fazer logout
         window.handleLogout = function() {
