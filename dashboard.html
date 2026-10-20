@@ -988,6 +988,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary d-none" id="modalMensagemRetry">Tentar novamente</button>
                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
                 </div>
             </div>
@@ -1095,9 +1096,46 @@
         </div>
     </div>
 
+    <!-- Modal de sessão prestes a expirar -->
+    <div class="modal fade" id="modalSessao" tabindex="-1" aria-labelledby="modalSessaoTitulo" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalSessaoTitulo"><i class="fas fa-clock"></i> Sessão prestes a expirar</h5>
+                </div>
+                <div class="modal-body">
+                    Por inatividade, sua sessão será encerrada em <strong id="sessaoSegundos">120</strong> segundos. Seu rascunho de cadastro fica guardado.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnSessaoSair">Sair agora</button>
+                    <button type="button" class="btn btn-primary" id="btnSessaoContinuar">Continuar conectado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação (fica acima dos demais) -->
+    <div class="modal fade" id="modalConfirmar" tabindex="-1" aria-labelledby="modalConfirmarTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalConfirmarTitulo">Confirmar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="modalConfirmarTexto"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnConfirmarOk">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { verificarSessao, fazerLogout } from './js/auth.js';
+        import { obterUsuarioLogado, encerrarSessao, iniciarMonitorInatividade } from './js/sessao.js';
+        import { iniciarMonitorConexao } from './js/ui.js';
 
         // Função para verificar autenticação
         function verificarAutenticacao() {
@@ -1108,7 +1146,7 @@
             }
 
             // Mostra o nome do usuário
-            const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+            const usuarioLogado = obterUsuarioLogado();
             document.getElementById('nomeUsuario').textContent = usuarioLogado.nome;
 
             // Credenciais e Configurações (backup) só para o administrador.
@@ -1170,9 +1208,30 @@
         // Função para fazer logout
         window.handleLogout = function() {
             console.log('Botão de logout clicado');
-            sessionStorage.removeItem('usuarioLogado');
+            encerrarSessao();
             window.location.href = 'index.html';
         };
+
+        // Aviso de conexão e sessão por inatividade
+        iniciarMonitorConexao();
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalSessao = document.getElementById('modalSessao');
+            const monitor = iniciarMonitorInatividade({
+                aoAvisar: (segundos) => {
+                    document.getElementById('sessaoSegundos').textContent = segundos;
+                    bootstrap.Modal.getOrCreateInstance(modalSessao).show();
+                },
+                aoRetomar: () => bootstrap.Modal.getOrCreateInstance(modalSessao).hide(),
+                aoExpirar: () => {
+                    encerrarSessao();
+                    window.location.href = 'index.html?motivo=expirada';
+                }
+            });
+            if (monitor) {
+                document.getElementById('btnSessaoContinuar').addEventListener('click', () => monitor.continuar());
+                document.getElementById('btnSessaoSair').addEventListener('click', () => window.handleLogout());
+            }
+        });
 
         // Event listener para o botão de logout
         document.addEventListener('DOMContentLoaded', function() {
@@ -1190,7 +1249,8 @@
     <script type="module">
         import { criarCredencial, verificarUsuarioExistente, listarCredenciais, atualizarCredencial, testarConexaoCredenciais } from './js/credenciais.js';
         import { verificarLogin } from './js/auth.js';
-        import { esc, mostrarMensagem } from './js/ui.js';
+        import { obterUsuarioLogado } from './js/sessao.js';
+        import { esc, mostrarMensagem, comBotaoOcupado } from './js/ui.js';
 
         window.mostrarMensagem = mostrarMensagem;
 
@@ -1238,7 +1298,7 @@
         }
 
         // Event listener para o botão salvar
-        document.getElementById('btnSalvarCredencial').addEventListener('click', salvarCredencial);
+        document.getElementById('btnSalvarCredencial').addEventListener('click', (e) => comBotaoOcupado(e.currentTarget, 'Salvando...', salvarCredencial));
 
         // Função para carregar a lista de credenciais
         async function carregarCredenciais() {
@@ -1285,7 +1345,7 @@
 
         // Carregar credenciais ao abrir a página (somente administrador)
         document.addEventListener('DOMContentLoaded', () => {
-            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado') || 'null');
+            const logado = obterUsuarioLogado();
             if (logado && logado.usuario === 'admin') carregarCredenciais();
         });
 
@@ -1297,7 +1357,7 @@
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAlterarSenha')).show();
         });
 
-        document.getElementById('btnSalvarNovaSenha').addEventListener('click', async () => {
+        document.getElementById('btnSalvarNovaSenha').addEventListener('click', (e) => comBotaoOcupado(e.currentTarget, 'Salvando...', async () => {
             const erro = document.getElementById('alterarSenhaErro');
             const mostrarErro = (msg) => { erro.textContent = msg; erro.classList.remove('d-none'); };
             erro.classList.add('d-none');
@@ -1305,7 +1365,7 @@
             const atual = document.getElementById('senhaAtual').value;
             const nova = document.getElementById('senhaNova').value;
             const confirmacao = document.getElementById('senhaConfirmacao').value;
-            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+            const logado = obterUsuarioLogado();
 
             if (nova.length < 6) return mostrarErro('A nova senha deve ter pelo menos 6 caracteres.');
             if (nova !== confirmacao) return mostrarErro('A confirmação não confere com a nova senha.');
@@ -1323,7 +1383,7 @@
             } catch (e) {
                 mostrarErro('Sem conexão com o servidor. Tente novamente.');
             }
-        });
+        }));
     </script>
 </body>
 </html> 

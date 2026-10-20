@@ -1,4 +1,5 @@
 // Supabase 2.39.3 empacotado localmente em vendor/ (sem dependência de CDN)
+import { obterUsuarioLogado } from './sessao.js';
 import { createClient } from '../vendor/supabase/supabase.js';
 
 // Configuração do Supabase
@@ -13,12 +14,8 @@ export { supabaseClient as supabase };
 
 // Nome do colaborador logado (gravado no histórico como responsável)
 function responsavelAtual() {
-    try {
-        const usuario = JSON.parse(sessionStorage.getItem('usuarioLogado'));
-        return (usuario && usuario.nome) || 'Sistema';
-    } catch (e) {
-        return 'Sistema';
-    }
+    const usuario = obterUsuarioLogado();
+    return (usuario && usuario.nome) || 'Sistema';
 }
 
 function eventoHistorico(processoId, tipo, valor, data = new Date().toISOString()) {

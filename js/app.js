@@ -14,7 +14,7 @@ import {
     restaurarBackup,
     testarConexao
 } from './supabase.js';
-import { esc, mostrarMensagem, contatoHtml } from './ui.js';
+import { esc, mostrarMensagem, mostrarToast, contatoHtml, confirmar, comBotaoOcupado } from './ui.js';
 import { COLUNAS_EXPORT, exportarCSV, exportarPDF, imprimirEtiqueta } from './exportar.js';
 
 const ITENS_POR_PAGINA_PESQUISA = 10;
@@ -238,7 +238,7 @@ async function executarPesquisa({ silencioso = false, manterPagina = false } = {
         renderizarTabelaPesquisaPaginada();
     } catch (error) {
         if (requisicao === pesquisaRequisicao) {
-            mostrarMensagem('Erro ao buscar processos: ' + error, 'danger');
+            mostrarMensagem('Erro ao buscar processos: ' + error, 'danger', { tentarNovamente: () => executarPesquisa({ silencioso, manterPagina }) });
         }
     } finally {
         if (!silencioso) window.esconderLoading();
@@ -488,9 +488,52 @@ function atualizarBarraLote() {
     });
 }
 
+async function confirmarStatusSensivel(status, quantidade) {
+    if (!STATUS_SENSIVEIS.includes(status)) return true;
+    return confirmar({
+        titulo: `Marcar como ${status}`,
+        mensagem: quantidade === 1
+            ? `Deseja realmente marcar este processo como ${status}?`
+            : `Deseja realmente marcar ${quantidade} processos como ${status}?`,
+        textoConfirmar: `Marcar como ${status}`,
+        perigo: true
+    });
+}
+
+// Restaura status/localização anteriores (agrupa os processos que tinham os mesmos valores)
+async function desfazerMovimentacao(anteriores) {
+    const grupos = new Map();
+    anteriores.forEach(({ id, status, localizacaoFisica }) => {
+        if (!status) return;
+        const chave = `${status}|${localizacaoFisica || ''}`;
+        if (!grupos.has(chave)) grupos.set(chave, { status, localizacaoFisica: localizacaoFisica || '', ids: [] });
+        grupos.get(chave).ids.push(id);
+    });
+
+    try {
+        window.mostrarLoading('Desfazendo...');
+        for (const grupo of grupos.values()) {
+            await atualizarEmLote(grupo.ids, { status: grupo.status, localizacaoFisica: grupo.localizacaoFisica });
+        }
+        window.esconderLoading();
+        mostrarMensagem('Alteração desfeita.', 'info');
+        await recarregarPesquisa(anteriores.map(a => a.id));
+        atualizarDashboard();
+    } catch (error) {
+        window.esconderLoading();
+        mostrarMensagem('Não foi possível desfazer: ' + error.message, 'danger', { tentarNovamente: () => desfazerMovimentacao(anteriores) });
+    }
+}
+
 async function aplicarMovimentacao(ids, campos) {
     if (ids.length === 0) return;
     const porId = id => pesquisaProcessosCache.find(p => p.id === id);
+
+    if (campos.status && !(await confirmarStatusSensivel(campos.status, ids.length))) return;
+
+    const anteriores = ids
+        .filter(id => porId(id))
+        .map(id => ({ id, status: porId(id).status, localizacaoFisica: porId(id).localizacaoFisica }));
 
     try {
         window.mostrarLoading('Atualizando...');
@@ -519,12 +562,12 @@ async function aplicarMovimentacao(ids, campos) {
 
         pesquisaSelecionados.clear();
         window.esconderLoading();
-        mostrarMensagem(mensagem, 'success');
+        mostrarToast(mensagem, 'success', { acao: { rotulo: 'Desfazer', aoClicar: () => desfazerMovimentacao(anteriores) } });
         await recarregarPesquisa(ids);
         atualizarDashboard();
     } catch (error) {
         window.esconderLoading();
-        mostrarMensagem('Erro ao atualizar: ' + error.message, 'danger');
+        mostrarMensagem('Erro ao atualizar: ' + error.message, 'danger', { tentarNovamente: () => aplicarMovimentacao(ids, campos) });
     }
 }
 
@@ -664,6 +707,7 @@ window.abrirModalEditar = function(processoId) {
         document.getElementById('editarProcessoId').value = processo.id;
         window.dispatchEvent(new Event('regra-localizacao'));
         editarBaseline = fotografar(CAMPOS_EDICAO);
+        editarStatusOriginal = processo.status || '';
         editarPermitirFechar = false;
         document.getElementById('editarDescartarBar').classList.add('d-none');
         document.getElementById('editarDescartarBar').classList.remove('d-flex');
@@ -676,7 +720,7 @@ window.abrirModalEditar = function(processoId) {
 };
 
 // Event listener para salvar edição
-document.getElementById('btnSalvarEdicao').addEventListener('click', async () => {
+async function salvarEdicao() {
     const processoId = document.getElementById('editarProcessoId').value;
     const processo = {
         id: Number(processoId),
@@ -691,10 +735,10 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
         localizacaoFisica: document.getElementById('editarLocalizacaoFisica').value
     };
 
+    if (processo.status !== editarStatusOriginal && !(await confirmarStatusSensivel(processo.status, 1))) return;
+
     try {
-        window.mostrarLoading('Salvando alterações...');
         const resultado = await atualizarProcesso(processo);
-        window.esconderLoading();
         editarPermitirFechar = true;
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditar'));
         modal.hide();
@@ -702,11 +746,15 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
         if (resultado && !resultado.historicoOk) {
             mostrarMensagem('As alterações foram salvas, mas o histórico não pôde ser registrado.', 'warning');
         }
-        recarregarPesquisa(processo && processo.id ? [processo.id] : []);
+        recarregarPesquisa([processo.id]);
+        atualizarDashboard();
     } catch (error) {
-        window.esconderLoading();
-        mostrarMensagem('Erro ao atualizar processo: ' + error, 'danger');
+        mostrarMensagem('Erro ao atualizar processo: ' + error, 'danger', { tentarNovamente: salvarEdicao });
     }
+}
+
+document.getElementById('btnSalvarEdicao').addEventListener('click', (e) => {
+    comBotaoOcupado(e.currentTarget, 'Salvando...', salvarEdicao);
 });
 
 // Configurações (prazo de atenção)
@@ -1278,6 +1326,8 @@ let baselineCadastro = null;
 let editarBaseline = null;
 let editarPermitirFechar = false;
 let sugestoesMotivos = [];
+let editarStatusOriginal = '';
+const STATUS_SENSIVEIS = ['Cancelado', 'Reprovado'];
 
 function fotografar(ids) {
     const valores = {};
@@ -1524,22 +1574,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (numeroDuplicadoId) window.abrirModalEditar(numeroDuplicadoId);
         });
 
-        document.getElementById('processoForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
+        const salvarCadastro = async () => {
             const processo = coletarDadosProcesso();
-            
+
             // Placa agora é opcional; nenhuma validação bloqueante é aplicada
-            
+
             if (!validarData(processo.dataInicial)) {
                 mostrarMensagem('Data inválida', 'warning');
                 return;
             }
 
             try {
-                window.mostrarLoading('Salvando processo...');
                 ultimoProcessoCadastradoId = await adicionarProcesso(processo);
-                window.esconderLoading();
                 document.getElementById('cadastroSucessoNumero').textContent = processo.numeroProcesso || '(sem número)';
                 const manter = document.getElementById('manterDados').checked;
                 const anteriores = {
@@ -1561,9 +1607,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 new bootstrap.Modal(document.getElementById('modalCadastroSucesso')).show();
                 atualizarDashboard();
             } catch (error) {
-                window.esconderLoading();
-                mostrarMensagem('Erro ao cadastrar processo: ' + error, 'danger');
+                mostrarMensagem('Erro ao cadastrar processo: ' + error, 'danger', { tentarNovamente: salvarCadastro });
             }
+        };
+
+        document.getElementById('processoForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            comBotaoOcupado(e.target.querySelector('button[type="submit"]'), 'Salvando...', salvarCadastro);
         });
 
         document.getElementById('btnCadastrarOutro').addEventListener('click', () => {
@@ -1797,7 +1847,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Configurações: prazo de atenção
-        document.getElementById('btnSalvarConfig').addEventListener('click', async () => {
+        document.getElementById('btnSalvarConfig').addEventListener('click', (e) => comBotaoOcupado(e.currentTarget, 'Salvando...', async () => {
             const campo = document.getElementById('configDiasAtencao');
             const valor = Number(campo.value);
             if (!Number.isInteger(valor) || valor < 1 || valor > 365) {
@@ -1815,7 +1865,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (error) {
                 mostrarMensagem('Não foi possível salvar o prazo. Verifique se a tabela "configuracoes" foi criada no banco (veja configuracoes.sql).', 'danger');
             }
-        });
+        }));
 
         // Dashboard: cards clicáveis e atalhos de atenção
         document.querySelectorAll('.card-clicavel').forEach(card => {
