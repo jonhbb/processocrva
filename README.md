@@ -5,14 +5,14 @@ Sistema web interno para controlar os processos de vistoria veicular pendentes d
 ## Funcionalidades
 
 - **Login** de colaboradores, com troca da própria senha (menu lateral) e mensagens de erro na própria tela.
-- **Dashboard** com totais por status (cards clicáveis que abrem a pesquisa já filtrada), lista de **atenção** (pendentes há 30+ dias e pendentes sem localização física), últimos processos e distribuições por status e tipo de veículo.
+- **Dashboard** com totais por status (cards clicáveis que abrem a pesquisa já filtrada), lista de **atenção** (pendentes há N dias ou mais e pendentes sem localização física), resumo **por localização** (clicável), gráfico de **entradas × finalizados** por mês, últimos processos e distribuições por status e tipo de veículo.
 - **Cadastro** organizado em Processo / Requerente / Veículo / Situação, com data de hoje por padrão, opção de manter status/localização/tipo do último cadastro, aviso de **número de processo duplicado** e opção "Cadastrar outro" ou "Ver processo" após salvar.
 - **Pesquisa** com busca livre (número, requerente, contato, placa, chassi e motivo), filtros por tipo, status e localização física, busca ao digitar, chips de filtros ativos, ordenação por coluna e destaque em vermelho para pendentes há 30+ dias. No celular a tabela vira cards.
 - **Receber processo**: campo no topo de todas as telas; digite o número e Enter para abrir o processo, ou cadastrá-lo se ainda não existir.
 - **Ações rápidas na pesquisa**: menu ⋮ em cada linha para mover de localização, alterar status ou duplicar; seleção de vários processos para mover/alterar em lote.
-- **Histórico** de alterações de status e de número do processo.
+- **Histórico** em linha do tempo: toda alteração (status, localização, número, requerente, contato, veículo, motivo...) com valor anterior → novo, responsável (colaborador logado) e tempo em cada etapa.
 - **Relatórios** por período, status e veículo, com exportação em PDF/CSV.
-- **Configurações** (somente administrador): backup e restauração dos dados.
+- **Configurações** (somente administrador): prazo de atenção (dias) para processos pendentes, backup e restauração dos dados.
 - **Credenciais** (somente administrador): cadastro e ativação/inativação de usuários.
 - A página aberta fica na URL (`dashboard.html#pesquisa`), então F5 e o botão Voltar do navegador funcionam.
 
@@ -38,7 +38,7 @@ Para publicar, copie a pasta para qualquer hospedagem estática (ou servidor com
 
 ### Banco de dados
 
-As tabelas `processos`, `historico` e `credenciais` ficam no Supabase. O script `credenciais.sql` cria a tabela de credenciais e o usuário `admin` inicial — **troque a senha padrão** no primeiro acesso (menu lateral > Alterar minha senha).
+As tabelas `processos`, `historico`, `credenciais` e `configuracoes` ficam no Supabase. O script `credenciais.sql` cria a tabela de credenciais e o usuário `admin` inicial; o `configuracoes.sql` cria a tabela de configurações (prazo de atenção; sem ela o sistema usa 30 dias) — **troque a senha padrão** no primeiro acesso (menu lateral > Alterar minha senha).
 
 A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
 
@@ -49,6 +49,7 @@ A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
 ├── index.html          # Login
 ├── dashboard.html      # Aplicação (dashboard, cadastro, pesquisa, relatórios, configurações, credenciais)
 ├── credenciais.sql     # Tabela de credenciais e usuário inicial
+├── configuracoes.sql   # Tabela de configurações (prazo de atenção)
 ├── css/style.css       # Estilos da aplicação
 ├── js/
 │   ├── app.js          # Lógica principal (cadastro, pesquisa, dashboard, relatórios)

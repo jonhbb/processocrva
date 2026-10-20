@@ -142,7 +142,7 @@
                     <div class="col-md-6 mb-3 mb-md-0">
                         <div class="card border-danger h-100">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="card-title mb-0 text-danger"><i class="fas fa-exclamation-triangle"></i> Pendentes há 30+ dias <span class="badge bg-danger" id="atencaoParadosTotal">0</span></h5>
+                                <h5 class="card-title mb-0 text-danger"><i class="fas fa-exclamation-triangle"></i> Pendentes há <span class="dias-atencao">30</span>+ dias <span class="badge bg-danger" id="atencaoParadosTotal">0</span></h5>
                                 <button type="button" class="btn btn-sm btn-outline-danger" id="btnVerParados">Ver todos</button>
                             </div>
                             <div class="card-body">
@@ -158,6 +158,39 @@
                             </div>
                             <div class="card-body">
                                 <div id="atencaoSemLocal" class="list-group list-group-flush"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onde estão os processos -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0"><i class="fas fa-map-marker-alt"></i> Onde estão os processos</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2" id="resumoLocalizacao"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Entradas x Finalizados -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0"><i class="fas fa-chart-bar"></i> Entradas × Finalizados por mês</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="grafico-legenda mb-2">
+                                    <span><i class="grafico-cor grafico-cor-entradas"></i> Entradas</span>
+                                    <span><i class="grafico-cor grafico-cor-finalizados"></i> Finalizados</span>
+                                </div>
+                                <div id="graficoMensal"><div class="text-muted small">Carregando...</div></div>
+                                <div class="form-text">Entradas pela data inicial do processo; finalizados pela data em que o status passou a Finalizado no histórico.</div>
                             </div>
                         </div>
                     </div>
@@ -433,6 +466,24 @@
 
             <div id="configuracoes" class="page">
                 <h2 class="mb-4">Configurações</h2>
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Prazo de atenção</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">Processos <strong>Pendentes</strong> há esse número de dias (ou mais) aparecem em vermelho na pesquisa e na lista de atenção do dashboard.</p>
+                                <div class="input-group" style="max-width: 320px;">
+                                    <input type="number" class="form-control" id="configDiasAtencao" min="1" max="365" value="30" aria-label="Prazo de atenção em dias">
+                                    <span class="input-group-text">dias</span>
+                                    <button type="button" class="btn btn-primary" id="btnSalvarConfig">Salvar</button>
+                                </div>
+                                <div id="configAviso" class="form-text text-warning d-none mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Opções de Backup -->
                 <div class="row mb-4">
                     <div class="col-md-12">
@@ -674,7 +725,7 @@
                     <div id="pesquisaPaginacao" class="d-none flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top">
                         <div class="text-muted small">
                             Total: <span id="pesquisaTotalRegistros">0</span> registro(s)
-                            <span class="ms-2"><span class="badge bg-danger">Pendente há 30+ dias</span> destacado em vermelho</span>
+                            <span class="ms-2"><span class="badge bg-danger">Pendente há <span class="dias-atencao">30</span>+ dias</span> destacado em vermelho</span>
                         </div>
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-sm btn-outline-primary" id="btnPesquisaAnterior" disabled>
@@ -807,19 +858,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Data/Hora</th>
-                                    <th>Status</th>
-                                    <th>Responsável</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaHistorico">
-                            </tbody>
-                        </table>
-                    </div>
+                    <div id="historicoResumo" class="small text-muted mb-3"></div>
+                    <ol id="historicoTimeline" class="timeline list-unstyled mb-0"></ol>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>

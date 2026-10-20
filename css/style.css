@@ -479,3 +479,117 @@ tr.linha-selecionada > td {
         max-width: none;
     }
 }
+
+/* Linha do tempo do histórico */
+.timeline {
+    position: relative;
+    padding-left: 2.25rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.9rem;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.1rem;
+}
+
+.timeline-marcador {
+    position: absolute;
+    left: -2.25rem;
+    top: 0;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #fff;
+    background: #6c757d;
+}
+
+.timeline-marcador.atual {
+    box-shadow: 0 0 0 4px rgba(78, 115, 223, 0.25);
+}
+
+.timeline-etapa {
+    display: inline-block;
+    margin-top: 0.2rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 1rem;
+    background: #eef1fb;
+    color: #3b4a8f;
+    font-size: 0.8rem;
+}
+
+/* Resumo por localização */
+.tile-local {
+    cursor: pointer;
+    height: 100%;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    text-align: center;
+    background: #fff;
+    transition: box-shadow 0.1s, transform 0.1s;
+}
+
+.tile-local:hover,
+.tile-local:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 0.35rem 0.75rem rgba(0, 0, 0, 0.12);
+    outline: none;
+}
+
+.tile-local .tile-numero {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.tile-local.tile-vazio {
+    border-style: dashed;
+}
+
+/* Gráfico mensal */
+.grafico-legenda {
+    display: flex;
+    gap: 1.25rem;
+    font-size: 0.9rem;
+}
+
+.grafico-cor {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-right: 0.3rem;
+    border-radius: 2px;
+}
+
+.grafico-cor-entradas { background: #4e73df; }
+.grafico-cor-finalizados { background: #1cc88a; }
+
+#graficoMensal svg {
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+}
+
+#graficoMensal .eixo-texto {
+    font-size: 11px;
+    fill: #6c757d;
+}
+
+#graficoMensal .valor-texto {
+    font-size: 11px;
+    font-weight: 600;
+    fill: #343a40;
+}

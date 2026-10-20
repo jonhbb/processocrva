@@ -6,6 +6,9 @@ import {
     buscarProcessoPorId, 
     buscarProcessos, 
     buscarProcessoPorNumero,
+    buscarConfiguracao,
+    salvarConfiguracao,
+    buscarFinalizacoes,
     buscarHistorico,
     realizarBackup,
     restaurarBackup,
@@ -14,7 +17,9 @@ import {
 import { esc, mostrarMensagem } from './ui.js';
 
 const ITENS_POR_PAGINA_PESQUISA = 10;
-const DIAS_ATENCAO = 30;
+const DIAS_ATENCAO_PADRAO = 30;
+let diasAtencao = DIAS_ATENCAO_PADRAO;
+let configDisponivel = true;
 let pesquisaProcessosCache = [];
 let pesquisaPaginaAtual = 1;
 let pesquisaCarregada = false;
@@ -47,7 +52,7 @@ function diasDesde(dataISO) {
 function estaParado(processo) {
     if (processo.status !== 'Pendente') return false;
     const dias = diasDesde(processo.dataInicial);
-    return dias !== null && dias >= DIAS_ATENCAO;
+    return dias !== null && dias >= diasAtencao;
 }
 
 // Funções de validação
@@ -453,29 +458,9 @@ window.abrirModalAlterarNumero = function(processoId) {
 
 window.abrirModalHistorico = function(processoId) {
     buscarHistorico(processoId).then(historico => {
-        const tbody = document.getElementById('tabelaHistorico');
-        tbody.innerHTML = '';
-        
-        historico.forEach(h => {
-            const tr = document.createElement('tr');
-            let descricao = '';
-            
-            if (h.tipo === 'status') {
-                descricao = `Status alterado para: ${h.valor}`;
-            } else if (h.tipo === 'numero') {
-                descricao = `Número alterado para: ${h.valor}`;
-            }
-            
-            tr.innerHTML = `
-                <td>${esc(new Date(h.data).toLocaleString('pt-BR'))}</td>
-                <td>${esc(descricao)}</td>
-                <td>${esc(h.responsavel)}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-        
-        const modal = new bootstrap.Modal(document.getElementById('modalHistorico'));
-        modal.show();
+        const processo = pesquisaProcessosCache.find(p => p.id === processoId);
+        renderizarLinhaDoTempo(historico, processo);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalHistorico')).show();
     }).catch(error => {
         mostrarMensagem('Erro ao buscar histórico: ' + error, 'danger');
     });
@@ -524,17 +509,145 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
 
     try {
         window.mostrarLoading('Salvando alterações...');
-        await atualizarProcesso(processo);
+        const resultado = await atualizarProcesso(processo);
         window.esconderLoading();
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditar'));
         modal.hide();
         mostrarMensagem('Processo atualizado com sucesso!');
+        if (resultado && !resultado.historicoOk) {
+            mostrarMensagem('As alterações foram salvas, mas o histórico não pôde ser registrado.', 'warning');
+        }
         document.getElementById('pesquisaForm').dispatchEvent(new Event('submit'));
     } catch (error) {
         window.esconderLoading();
         mostrarMensagem('Erro ao atualizar processo: ' + error, 'danger');
     }
 });
+
+// Configurações (prazo de atenção)
+function atualizarRotulosDiasAtencao() {
+    document.querySelectorAll('.dias-atencao').forEach(el => { el.textContent = diasAtencao; });
+    const campo = document.getElementById('configDiasAtencao');
+    if (campo) campo.value = diasAtencao;
+
+    const aviso = document.getElementById('configAviso');
+    if (aviso) {
+        aviso.textContent = configDisponivel
+            ? ''
+            : `Não foi possível ler as configurações do banco (a tabela "configuracoes" existe? veja configuracoes.sql). Usando o padrão de ${DIAS_ATENCAO_PADRAO} dias.`;
+        aviso.classList.toggle('d-none', configDisponivel);
+    }
+}
+
+async function carregarConfiguracoes() {
+    try {
+        const valor = parseInt(await buscarConfiguracao('dias_atencao'), 10);
+        configDisponivel = true;
+        if (valor > 0) diasAtencao = valor;
+    } catch (error) {
+        configDisponivel = false;
+        console.warn('Configurações indisponíveis, usando padrão:', error);
+    }
+    atualizarRotulosDiasAtencao();
+}
+
+// Histórico em linha do tempo
+const ROTULOS_CAMPO_HISTORICO = {
+    requerente: 'Requerente',
+    contato: 'Contato',
+    tipo_veiculo: 'Tipo de veículo',
+    placa: 'Placa',
+    chassi: 'Chassi',
+    motivo: 'Motivo da pendência',
+    data_inicial: 'Data inicial'
+};
+
+function partesMudanca(valor) {
+    const texto = String(valor ?? '');
+    const i = texto.indexOf(' → ');
+    return i === -1
+        ? { antes: '', depois: texto }
+        : { antes: texto.slice(0, i), depois: texto.slice(i + 3) };
+}
+
+function descreverEventoHistorico(evento, primeiroStatus) {
+    const { antes, depois } = partesMudanca(evento.valor);
+    switch (evento.tipo) {
+        case 'status':
+            return {
+                icone: 'fa-flag',
+                cor: getStatusColor(evento.valor),
+                titulo: `${primeiroStatus ? 'Status inicial' : 'Status alterado para'}: ${evento.valor}`
+            };
+        case 'localizacao':
+            return {
+                icone: 'fa-map-marker-alt',
+                cor: 'primary',
+                titulo: antes ? `Movido de ${antes} para ${depois}` : `Localização definida: ${depois}`
+            };
+        case 'numero':
+            return { icone: 'fa-hashtag', cor: 'secondary', titulo: `Número alterado para ${evento.valor}` };
+        default: {
+            const rotulo = ROTULOS_CAMPO_HISTORICO[evento.tipo] || evento.tipo;
+            const fmt = v => (evento.tipo === 'data_inicial' ? formatarDataBR(v) : v) || '(vazio)';
+            return { icone: 'fa-pen', cor: 'secondary', titulo: `${rotulo} alterado: ${fmt(antes)} → ${fmt(depois)}` };
+        }
+    }
+}
+
+function textoDuracaoEtapa(evento) {
+    const n = evento.dias;
+    const base = n === 0 ? 'menos de 1 dia' : n === 1 ? '1 dia' : `${n} dias`;
+    return evento.atual ? `Está nesta etapa há ${base}` : `Ficou ${base} nesta etapa`;
+}
+
+function renderizarLinhaDoTempo(historico, processo) {
+    const eventos = [...historico].sort((a, b) => new Date(a.data) - new Date(b.data));
+
+    // Tempo em cada etapa: do evento até o próximo do mesmo tipo (status ou localização)
+    eventos.forEach((evento, i) => {
+        if (evento.tipo !== 'status' && evento.tipo !== 'localizacao') return;
+        const proximo = eventos.slice(i + 1).find(e => e.tipo === evento.tipo);
+        const fim = proximo ? new Date(proximo.data) : new Date();
+        evento.dias = Math.max(0, Math.floor((fim - new Date(evento.data)) / 86400000));
+        evento.atual = !proximo;
+    });
+
+    const lista = document.getElementById('historicoTimeline');
+    const resumo = document.getElementById('historicoResumo');
+    lista.innerHTML = '';
+
+    document.getElementById('modalHistoricoLabel').textContent =
+        processo && processo.numeroProcesso ? `Histórico do Processo ${processo.numeroProcesso}` : 'Histórico do Processo';
+
+    if (eventos.length === 0) {
+        resumo.textContent = '';
+        lista.innerHTML = '<li class="text-muted">Nenhum registro de histórico para este processo.</li>';
+        return;
+    }
+
+    const diasNoSistema = processo ? diasDesde(processo.dataInicial) : null;
+    resumo.textContent = diasNoSistema !== null
+        ? `Entrada em ${formatarDataBR(processo.dataInicial)} · ${diasNoSistema} dia(s) no sistema · ${eventos.length} registro(s)`
+        : `${eventos.length} registro(s)`;
+
+    const primeiroStatus = eventos.find(e => e.tipo === 'status');
+    [...eventos].reverse().forEach(evento => {
+        const info = descreverEventoHistorico(evento, evento === primeiroStatus);
+        const etapa = evento.dias !== undefined
+            ? `<span class="timeline-etapa">${esc(textoDuracaoEtapa(evento))}</span>`
+            : '';
+        const item = document.createElement('li');
+        item.className = 'timeline-item';
+        item.innerHTML = `
+            <span class="timeline-marcador bg-${info.cor}${evento.atual ? ' atual' : ''}"><i class="fas ${info.icone}"></i></span>
+            <div><strong>${esc(info.titulo)}</strong>${evento.atual ? ' <span class="badge bg-primary">atual</span>' : ''}</div>
+            <div class="small text-muted">${esc(new Date(evento.data).toLocaleString('pt-BR'))} · por ${esc(evento.responsavel || 'Sistema')}</div>
+            ${etapa}
+        `;
+        lista.appendChild(item);
+    });
+}
 
 // Funções do Dashboard
 function renderizarListaAtencao(containerId, totalId, lista) {
@@ -574,6 +687,83 @@ function renderizarAtencao(processos) {
     renderizarListaAtencao('atencaoSemLocal', 'atencaoSemLocalTotal', semLocal);
 }
 
+function renderizarResumoLocalizacao(processos) {
+    const container = document.getElementById('resumoLocalizacao');
+    container.innerHTML = '';
+
+    const contagem = {};
+    LOCALIZACOES.forEach(l => { contagem[l] = 0; });
+    let semLocalizacao = 0;
+    processos.forEach(p => {
+        if (!p.localizacaoFisica) semLocalizacao++;
+        else contagem[p.localizacaoFisica] = (contagem[p.localizacaoFisica] || 0) + 1;
+    });
+
+    const tile = (rotulo, quantidade, atributo) => `
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="tile-local${quantidade === 0 ? ' tile-vazio' : ''}" role="button" tabindex="0" ${atributo} title="Ver na pesquisa">
+                <div class="tile-numero">${quantidade}</div>
+                <div class="small text-muted">${esc(rotulo)}</div>
+            </div>
+        </div>`;
+
+    container.innerHTML = Object.entries(contagem)
+        .map(([local, quantidade]) => tile(local, quantidade, `data-local="${esc(local)}"`))
+        .join('') + tile('Sem localização', semLocalizacao, 'data-sem-local="1"');
+}
+
+function renderizarGraficoMensal(processos, finalizacoes) {
+    const container = document.getElementById('graficoMensal');
+    const hoje = new Date();
+    const meses = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const nome = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+        meses.push({ chave, rotulo: `${nome}/${String(d.getFullYear()).slice(2)}`, entradas: 0, finalizados: 0 });
+    }
+
+    processos.forEach(p => {
+        const m = meses.find(x => x.chave === String(p.dataInicial || '').slice(0, 7));
+        if (m) m.entradas++;
+    });
+    finalizacoes.forEach(iso => {
+        const d = new Date(iso);
+        const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const m = meses.find(x => x.chave === chave);
+        if (m) m.finalizados++;
+    });
+
+    const maximo = Math.max(1, ...meses.map(m => Math.max(m.entradas, m.finalizados)));
+    const passo = Math.max(1, Math.ceil(maximo / 4));
+    const topo = passo * 4;
+
+    const L = 640, A = 260, margemEsq = 34, margemDir = 10, margemTopo = 22, margemBase = 30;
+    const largura = L - margemEsq - margemDir;
+    const altura = A - margemTopo - margemBase;
+    const grupo = largura / meses.length;
+    const barra = Math.min(34, grupo / 2.6);
+    const y = valor => margemTopo + altura - (valor / topo) * altura;
+
+    let svg = `<svg viewBox="0 0 ${L} ${A}" role="img" aria-label="Gráfico de barras com entradas e finalizados nos últimos 6 meses">`;
+    for (let i = 0; i <= 4; i++) {
+        const valor = i * passo;
+        svg += `<line x1="${margemEsq}" x2="${L - margemDir}" y1="${y(valor)}" y2="${y(valor)}" stroke="#e9ecef"/>`;
+        svg += `<text class="eixo-texto" x="${margemEsq - 6}" y="${y(valor) + 4}" text-anchor="end">${valor}</text>`;
+    }
+    meses.forEach((m, i) => {
+        const centro = margemEsq + grupo * i + grupo / 2;
+        [[m.entradas, '#4e73df', 'entradas', -barra - 2], [m.finalizados, '#1cc88a', 'finalizados', 2]].forEach(([valor, cor, nome, desloc]) => {
+            const x = centro + desloc;
+            svg += `<rect x="${x}" y="${y(valor)}" width="${barra}" height="${margemTopo + altura - y(valor)}" rx="2" fill="${cor}"><title>${esc(m.rotulo)}: ${valor} ${nome}</title></rect>`;
+            if (valor > 0) svg += `<text class="valor-texto" x="${x + barra / 2}" y="${y(valor) - 4}" text-anchor="middle">${valor}</text>`;
+        });
+        svg += `<text class="eixo-texto" x="${centro}" y="${A - 10}" text-anchor="middle">${esc(m.rotulo)}</text>`;
+    });
+    svg += '</svg>';
+    container.innerHTML = svg;
+}
+
 async function atualizarDashboard() {
     try {
         // Busca todos os processos
@@ -588,6 +778,13 @@ async function atualizarDashboard() {
         document.getElementById('processosPendentes').textContent = processos.filter(p => p.status === 'Pendente').length;
 
         renderizarAtencao(processos);
+        renderizarResumoLocalizacao(processos);
+        buscarFinalizacoes()
+            .then(finalizacoes => renderizarGraficoMensal(processos, finalizacoes))
+            .catch(() => {
+                document.getElementById('graficoMensal').innerHTML =
+                    '<div class="text-muted small">Não foi possível carregar os dados do gráfico.</div>';
+            });
 
         // Atualiza últimos processos
         const tbodyUltimos = document.getElementById('ultimosProcessos');
@@ -1050,6 +1247,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Configurações (prazo de atenção) antes de desenhar o dashboard
+        await carregarConfiguracoes();
+
         // Atualiza o dashboard
         atualizarDashboard();
 
@@ -1284,6 +1484,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Regra: localização física x status
         ligarRegraLocalizacao('status', 'localizacaoFisica', 'localizacaoHint');
         ligarRegraLocalizacao('editarStatus', 'editarLocalizacaoFisica', 'editarLocalizacaoHint');
+
+        // Dashboard: resumo por localização
+        const resumoLocal = document.getElementById('resumoLocalizacao');
+        const abrirTile = (alvo) => {
+            const tile = alvo.closest('.tile-local');
+            if (!tile) return;
+            if (tile.dataset.semLocal) aplicarFiltrosPesquisa({ semLocalizacao: true });
+            else aplicarFiltrosPesquisa({ localizacaoFisica: tile.dataset.local });
+        };
+        resumoLocal.addEventListener('click', (e) => abrirTile(e.target));
+        resumoLocal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                abrirTile(e.target);
+            }
+        });
+
+        // Configurações: prazo de atenção
+        document.getElementById('btnSalvarConfig').addEventListener('click', async () => {
+            const campo = document.getElementById('configDiasAtencao');
+            const valor = Number(campo.value);
+            if (!Number.isInteger(valor) || valor < 1 || valor > 365) {
+                mostrarMensagem('Informe um prazo entre 1 e 365 dias.', 'warning');
+                return;
+            }
+            try {
+                await salvarConfiguracao('dias_atencao', valor);
+                diasAtencao = valor;
+                configDisponivel = true;
+                atualizarRotulosDiasAtencao();
+                if (pesquisaCarregada) renderizarTabelaPesquisaPaginada();
+                atualizarDashboard();
+                mostrarMensagem(`Prazo de atenção definido para ${valor} dias.`, 'success');
+            } catch (error) {
+                mostrarMensagem('Não foi possível salvar o prazo. Verifique se a tabela "configuracoes" foi criada no banco (veja configuracoes.sql).', 'danger');
+            }
+        });
 
         // Dashboard: cards clicáveis e atalhos de atenção
         document.querySelectorAll('.card-clicavel').forEach(card => {
