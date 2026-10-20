@@ -615,7 +615,25 @@ function renderizarTabelaPesquisaPaginada() {
     const botaoExportar = document.getElementById('btnExportar');
     botaoExportar.disabled = total === 0;
     document.getElementById('btnExportarTexto').textContent = total > 0 ? `Exportar (${total})` : 'Exportar';
-    document.getElementById('pesquisaVazio').classList.toggle('d-none', total !== 0);
+    const vazio = document.getElementById('pesquisaVazio');
+    vazio.classList.toggle('d-none', total !== 0);
+    if (total === 0) {
+        const comFiltro = Object.values(coletarFiltrosPesquisa()).some(Boolean);
+        vazio.innerHTML = comFiltro
+            ? `<i class="fas fa-folder-open fa-2x mb-2"></i>
+               <p class="mb-2">Nenhum processo encontrado para os filtros informados.</p>
+               <button type="button" class="btn btn-sm btn-outline-secondary" id="vazioLimparFiltros">Limpar filtros</button>`
+            : `<i class="fas fa-folder-open fa-2x mb-2"></i>
+               <p class="mb-2">Nenhum processo cadastrado ainda.</p>
+               <a href="#cadastro" class="btn btn-sm btn-primary">Cadastrar o primeiro processo</a>`;
+        const limpar = document.getElementById('vazioLimparFiltros');
+        if (limpar) {
+            limpar.addEventListener('click', () => {
+                limparFiltrosPesquisa();
+                executarPesquisa({ silencioso: true });
+            });
+        }
+    }
 
     const nav = document.getElementById('pesquisaPaginacao');
     if (!nav) return;
@@ -981,7 +999,7 @@ function renderizarGraficoMensal(processos, finalizacoes) {
     let svg = `<svg viewBox="0 0 ${L} ${A}" role="img" aria-label="Gráfico de barras com entradas e finalizados nos últimos 6 meses">`;
     for (let i = 0; i <= 4; i++) {
         const valor = i * passo;
-        svg += `<line x1="${margemEsq}" x2="${L - margemDir}" y1="${y(valor)}" y2="${y(valor)}" stroke="#e9ecef"/>`;
+        svg += `<line class="grade-linha" x1="${margemEsq}" x2="${L - margemDir}" y1="${y(valor)}" y2="${y(valor)}"/>`;
         svg += `<text class="eixo-texto" x="${margemEsq - 6}" y="${y(valor) + 4}" text-anchor="end">${valor}</text>`;
     }
     meses.forEach((m, i) => {
@@ -994,7 +1012,10 @@ function renderizarGraficoMensal(processos, finalizacoes) {
         svg += `<text class="eixo-texto" x="${centro}" y="${A - 10}" text-anchor="middle">${esc(m.rotulo)}</text>`;
     });
     svg += '</svg>';
-    container.innerHTML = svg;
+    const semDados = meses.every(m => m.entradas === 0 && m.finalizados === 0);
+    container.innerHTML = svg + (semDados
+        ? '<div class="text-muted small text-center">Ainda não há entradas nem finalizações nos últimos 6 meses.</div>'
+        : '');
 }
 
 async function atualizarDashboard() {
@@ -1027,6 +1048,12 @@ async function atualizarDashboard() {
             .slice(0, 5);
 
         tbodyUltimos.innerHTML = '';
+
+        if (processos.length === 0) {
+            tbodyUltimos.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">
+                Nenhum processo cadastrado ainda. <a href="#cadastro">Cadastrar o primeiro processo</a>
+            </td></tr>`;
+        }
         
         ultimosProcessos.forEach(processo => {
             const tr = document.createElement('tr');
@@ -1057,6 +1084,10 @@ async function atualizarDashboard() {
             'Finalizado': 'info'
         };
 
+        if (processos.length === 0) {
+            distribuicaoStatus.innerHTML = '<div class="text-muted small">Sem dados para exibir.</div>';
+        }
+
         Object.entries(statusCount).forEach(([status, quantidade]) => {
             const percentual = ((quantidade / processos.length) * 100).toFixed(1);
             const elemento = document.createElement('div');
@@ -1079,6 +1110,10 @@ async function atualizarDashboard() {
         processos.forEach(p => {
             veiculoCount[p.tipoVeiculo] = (veiculoCount[p.tipoVeiculo] || 0) + 1;
         });
+
+        if (processos.length === 0) {
+            distribuicaoVeiculos.innerHTML = '<div class="text-muted small">Sem dados para exibir.</div>';
+        }
 
         Object.entries(veiculoCount).forEach(([tipo, quantidade]) => {
             const percentual = ((quantidade / processos.length) * 100).toFixed(1);
@@ -1165,6 +1200,9 @@ async function gerarRelatorio(processos, titulo) {
         const processosPagina = processos.slice(inicio, fim);
 
         tbody.innerHTML = '';
+        if (processosPagina.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Nenhum processo encontrado com os critérios selecionados.</td></tr>';
+        }
         processosPagina.forEach(processo => {
             const tr = document.createElement('tr');
             tr.innerHTML = `

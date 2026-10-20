@@ -14,6 +14,11 @@ Sistema web interno para controlar os processos de vistoria veicular pendentes d
 - **Relatórios** por período, status e veículo, com exportação em PDF/CSV.
 - **Configurações** (somente administrador): prazo de atenção (dias) para processos pendentes, backup e restauração dos dados.
 - **Credenciais** (somente administrador): cadastro e ativação/inativação de usuários.
+- **Visões da pesquisa**: atalhos prontos (Pendentes, Parados, Sem localização, Perícia, Arquivo Morto) e pesquisas salvas pelo próprio usuário. A busca ignora acentos, maiúsculas, espaços e hífens, e filtros/ordenação são lembrados na aba.
+- **Exportar** o resultado da pesquisa em CSV ou PDF, escolhendo as colunas; **etiqueta** imprimível de cada processo; links de ligação/WhatsApp nos contatos.
+- **Cadastro com rascunho automático**, aviso de alterações não salvas, sugestões (requerentes e motivos frequentes) e motivo obrigatório só para status Pendente.
+- **Segurança de uso**: confirmação ao marcar Cancelado/Reprovado, "Desfazer" após mover/alterar status, aviso de falta de conexão com "Tentar novamente", sessão com aviso antes de expirar por inatividade e opção "Manter-me conectado" (12 h).
+- **Acessibilidade e conforto**: tema escuro, tamanho de letra, menu lateral recolhível, atalhos de teclado (`/`, `N`, `R`, `?`), botão "pular para o conteúdo" e cores com contraste adequado.
 - A página aberta fica na URL (`dashboard.html#pesquisa`), então F5 e o botão Voltar do navegador funcionam.
 
 > A placa é um campo livre, sem máscara, por decisão da coordenação.
@@ -55,6 +60,10 @@ A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
 │   ├── app.js          # Lógica principal (cadastro, pesquisa, dashboard, relatórios)
 │   ├── auth.js         # Login, sessão e logout
 │   ├── credenciais.js  # Gestão de credenciais
+│   ├── sessao.js       # Sessão do usuário e inatividade
+│   ├── exportar.js     # Exportação CSV/PDF e etiqueta
+│   ├── aparencia.js    # Tema, tamanho de letra e menu recolhido
+│   ├── atalhos.js      # Atalhos de teclado
 │   ├── supabase.js     # Cliente e consultas ao Supabase
 │   └── ui.js           # Toasts, mensagens e escape de HTML
 └── vendor/             # Bootstrap, Font Awesome, jsPDF e Supabase (cópias locais)

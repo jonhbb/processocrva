@@ -7,11 +7,13 @@
     <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
+    <script src="js/aparencia.js"></script>
     <!-- Bibliotecas para PDF -->
     <script src="vendor/jspdf/jspdf.umd.min.js"></script>
     <script src="vendor/jspdf/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
+    <a href="#" class="visually-hidden-focusable pular-conteudo" id="pularConteudo">Pular para o conteúdo</a>
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>
@@ -19,7 +21,7 @@
     </div>
 
     <!-- Sidebar Toggle (mobile) -->
-    <button class="sidebar-toggle" id="sidebarToggle">
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" title="Abrir menu">
         <i class="fas fa-bars"></i>
     </button>
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -28,6 +30,7 @@
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-header">
+                <button type="button" class="btn btn-sm btn-outline-light sidebar-colapsar" id="btnRecolherMenu" aria-label="Recolher menu lateral" title="Recolher menu lateral"><i class="fas fa-angles-left"></i></button>
                 <h3>CRVA 0371</h3>
                 <p>Tramandaí/RS</p>
                 <div class="user-info">
@@ -41,44 +44,51 @@
 
             <ul class="list-unstyled components">
                 <li class="active">
-                    <a href="#" data-page="home">
-                        <i class="fas fa-home"></i> Página Inicial
+                    <a href="#" data-page="home" title="Página Inicial">
+                        <i class="fas fa-home"></i> <span class="menu-texto">Página Inicial</span>
                     </a>
                 </li>
                 <li>
-                    <a href="#" data-page="cadastro">
-                        <i class="fas fa-plus-circle"></i> Cadastro de Processos
+                    <a href="#" data-page="cadastro" title="Cadastro de Processos">
+                        <i class="fas fa-plus-circle"></i> <span class="menu-texto">Cadastro de Processos</span>
                     </a>
                 </li>
                 <li>
-                    <a href="#" data-page="pesquisa">
-                        <i class="fas fa-search"></i> Pesquisa de Processos
+                    <a href="#" data-page="pesquisa" title="Pesquisa de Processos">
+                        <i class="fas fa-search"></i> <span class="menu-texto">Pesquisa de Processos</span>
                     </a>
                 </li>
                 <li>
-                    <a href="#" data-page="relatorios">
-                        <i class="fas fa-chart-bar"></i> Relatórios
+                    <a href="#" data-page="relatorios" title="Relatórios">
+                        <i class="fas fa-chart-bar"></i> <span class="menu-texto">Relatórios</span>
                     </a>
                 </li>
                 <li data-somente-admin class="d-none">
-                    <a href="#" data-page="credenciais">
-                        <i class="fas fa-user-lock"></i> Credenciais
+                    <a href="#" data-page="credenciais" title="Credenciais">
+                        <i class="fas fa-user-lock"></i> <span class="menu-texto">Credenciais</span>
                     </a>
                 </li>
                 <li data-somente-admin class="d-none">
-                    <a href="#" data-page="configuracoes">
-                        <i class="fas fa-cog"></i> Configurações
+                    <a href="#" data-page="configuracoes" title="Configurações">
+                        <i class="fas fa-cog"></i> <span class="menu-texto">Configurações</span>
                     </a>
                 </li>
             </ul>
+
+            <div class="sidebar-aparencia" role="group" aria-label="Aparência e ajuda">
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnTema" aria-label="Usar tema escuro" title="Usar tema escuro"><i class="fas fa-moon"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnFonteMenos" aria-label="Diminuir letras" title="Diminuir letras">A-</button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnFonteMais" aria-label="Aumentar letras" title="Aumentar letras">A+</button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnAtalhos" aria-label="Atalhos de teclado" title="Atalhos de teclado (?)"><i class="fas fa-keyboard"></i></button>
+            </div>
         </nav>
 
         <!-- Page Content -->
-        <div id="content">
+        <div id="content" tabindex="-1">
             <!-- Receber processo (atalho global) -->
             <form id="formReceber" class="receber-barra input-group mb-4" autocomplete="off">
                 <span class="input-group-text"><i class="fas fa-inbox"></i></span>
-                <input type="text" class="form-control" id="receberNumero" placeholder="Receber processo: digite o número e pressione Enter" aria-label="Número do processo a receber">
+                <input type="text" class="form-control" id="receberNumero" placeholder="Receber processo (número + Enter)" aria-label="Número do processo a receber">
                 <button type="submit" class="btn btn-success">Receber</button>
             </form>
 
@@ -1096,6 +1106,30 @@
         </div>
     </div>
 
+    <!-- Modal de atalhos de teclado -->
+    <div class="modal fade" id="modalAtalhos" tabindex="-1" aria-labelledby="modalAtalhosTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAtalhosTitulo"><i class="fas fa-keyboard"></i> Atalhos de teclado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td><kbd>/</kbd></td><td>Pesquisar (vai para a busca livre)</td></tr>
+                            <tr><td><kbd>N</kbd></td><td>Novo cadastro</td></tr>
+                            <tr><td><kbd>R</kbd></td><td>Receber processo (campo do topo)</td></tr>
+                            <tr><td><kbd>?</kbd></td><td>Mostrar esta lista</td></tr>
+                            <tr><td><kbd>Esc</kbd></td><td>Fechar janelas</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="form-text mb-0 mt-2">Os atalhos não funcionam enquanto você digita em um campo.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de sessão prestes a expirar -->
     <div class="modal fade" id="modalSessao" tabindex="-1" aria-labelledby="modalSessaoTitulo" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
@@ -1134,6 +1168,7 @@
     <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { verificarSessao, fazerLogout } from './js/auth.js';
+        import { iniciarAtalhos } from './js/atalhos.js';
         import { obterUsuarioLogado, encerrarSessao, iniciarMonitorInatividade } from './js/sessao.js';
         import { iniciarMonitorConexao } from './js/ui.js';
 
@@ -1214,6 +1249,13 @@
 
         // Aviso de conexão e sessão por inatividade
         iniciarMonitorConexao();
+        document.addEventListener('DOMContentLoaded', () => {
+            iniciarAtalhos();
+            document.getElementById('pularConteudo').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('content').focus();
+            });
+        });
         document.addEventListener('DOMContentLoaded', () => {
             const modalSessao = document.getElementById('modalSessao');
             const monitor = iniciarMonitorInatividade({
@@ -1305,6 +1347,10 @@
             const { success, data } = await listarCredenciais();
             const tbody = document.getElementById('tabelaCredenciais');
             tbody.innerHTML = '';
+
+            if (success && data && data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Nenhuma credencial cadastrada.</td></tr>';
+            }
 
             if (success && data) {
                 data.forEach(credencial => {

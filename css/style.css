@@ -339,7 +339,7 @@ td:last-child {
 .secao-form {
     margin: 1.25rem 0 0.75rem;
     padding-bottom: 0.4rem;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--bs-border-color);
     color: #4e73df;
     font-size: 1.05rem;
 }
@@ -426,9 +426,9 @@ tr.processo-atrasado > td {
     table.tabela-cards tr {
         margin-bottom: 0.75rem;
         padding: 0.5rem 0.75rem;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--bs-border-color);
         border-radius: 0.5rem;
-        background: #fff;
+        background: var(--bs-body-bg);
     }
 
     table.tabela-cards td {
@@ -493,7 +493,7 @@ tr.linha-selecionada > td {
     top: 0.25rem;
     bottom: 0.25rem;
     width: 2px;
-    background: #dee2e6;
+    background: var(--bs-border-color);
 }
 
 .timeline-item {
@@ -535,10 +535,10 @@ tr.linha-selecionada > td {
     cursor: pointer;
     height: 100%;
     padding: 0.75rem;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--bs-border-color);
     border-radius: 0.5rem;
     text-align: center;
-    background: #fff;
+    background: var(--bs-body-bg);
     transition: box-shadow 0.1s, transform 0.1s;
 }
 
@@ -696,4 +696,151 @@ tr.linha-destaque > td {
 
 #modalConfirmar {
     z-index: 1070;
+}
+
+/* Contraste: texto escuro sobre fundos claros (amarelo e ciano) */
+.badge.bg-warning,
+.badge.bg-info,
+.card.bg-warning,
+.card.bg-info {
+    color: #212529 !important;
+}
+
+/* Gráfico: linhas de grade */
+#graficoMensal .grade-linha {
+    stroke: #e9ecef;
+}
+
+/* Pular para o conteúdo */
+.pular-conteudo {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 10002;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    background: #fff;
+    color: #000;
+}
+
+#content:focus {
+    outline: none;
+}
+
+/* Aparência (menu lateral) */
+.sidebar-aparencia {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0 1rem 1rem;
+}
+
+.sidebar-colapsar {
+    display: none;
+}
+
+#sidebar .menu-texto {
+    margin-left: 0.25rem;
+}
+
+#sidebar ul li a i {
+    width: 1.4em;
+    text-align: center;
+}
+
+@media (min-width: 769px) {
+    .sidebar-header {
+        position: relative;
+    }
+
+    .sidebar-colapsar {
+        display: block;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 0.1rem 0.4rem;
+    }
+
+    html.sidebar-recolhida #sidebar {
+        min-width: 64px;
+        max-width: 64px;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-header {
+        padding: 50px 0 10px;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-header > :not(.sidebar-colapsar) {
+        display: none;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-colapsar {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) rotate(180deg);
+    }
+
+    html.sidebar-recolhida #sidebar .menu-texto {
+        display: none;
+    }
+
+    html.sidebar-recolhida #sidebar ul li a {
+        padding: 12px 0;
+        text-align: center;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-aparencia {
+        flex-direction: column;
+        align-items: center;
+        padding: 0 0 1rem;
+    }
+}
+
+/* Tema escuro (Bootstrap cuida dos componentes; aqui só os ajustes próprios) */
+[data-bs-theme="dark"] .card-title,
+[data-bs-theme="dark"] .form-label {
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .table th {
+    background-color: var(--bs-tertiary-bg);
+}
+
+[data-bs-theme="dark"] tr.processo-atrasado > td {
+    background-color: #4a1f24 !important;
+}
+
+[data-bs-theme="dark"] tr.linha-selecionada > td {
+    background-color: #1f3a66 !important;
+}
+
+[data-bs-theme="dark"] table.tabela-cards tr.processo-atrasado {
+    background: #4a1f24;
+    border-color: #842029;
+}
+
+[data-bs-theme="dark"] .timeline-etapa {
+    background: #2b3350;
+    color: #b8c4ff;
+}
+
+[data-bs-theme="dark"] .secao-form {
+    color: #8fa8ff;
+}
+
+[data-bs-theme="dark"] #graficoMensal .grade-linha {
+    stroke: #495057;
+}
+
+[data-bs-theme="dark"] #graficoMensal .eixo-texto {
+    fill: #adb5bd;
+}
+
+[data-bs-theme="dark"] #graficoMensal .valor-texto {
+    fill: #e9ecef;
+}
+
+[data-bs-theme="dark"] .pular-conteudo {
+    background: #212529;
+    color: #fff;
 }
