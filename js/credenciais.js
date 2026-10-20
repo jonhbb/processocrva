@@ -34,7 +34,7 @@ export async function testarConexaoCredenciais() {
 }
 
 // Função para criar nova credencial
-export async function criarCredencial(nomeColaborador, usuario, senha) {
+export async function criarCredencial(nomeColaborador, usuario, senha, perfil = 'usuario') {
     try {
         console.log('Tentando criar credencial:', { nomeColaborador, usuario });
         
@@ -45,7 +45,9 @@ export async function criarCredencial(nomeColaborador, usuario, senha) {
                     nome_colaborador: nomeColaborador,
                     usuario: usuario,
                     senha: senha,
-                    status: 'ativo'
+                    status: 'ativo',
+                    // só envia o perfil quando não é o padrão (funciona mesmo antes de rodar o SQL de perfis)
+                    ...(perfil !== 'usuario' ? { perfil } : {})
                 }
             ])
             .select();
@@ -66,13 +68,21 @@ export async function criarCredencial(nomeColaborador, usuario, senha) {
 // Função para listar todas as credenciais
 export async function listarCredenciais() {
     try {
-        const { data, error } = await supabase
+        let consulta = await supabase
             .from('credenciais')
-            .select('id, nome_colaborador, usuario, data_criacao, status')
+            .select('id, nome_colaborador, usuario, data_criacao, status, perfil')
             .order('nome_colaborador');
 
-        if (error) throw error;
-        return { success: true, data };
+        if (consulta.error) {
+            // coluna "perfil" ainda não existe: lista sem ela
+            consulta = await supabase
+                .from('credenciais')
+                .select('id, nome_colaborador, usuario, data_criacao, status')
+                .order('nome_colaborador');
+        }
+
+        if (consulta.error) throw consulta.error;
+        return { success: true, data: consulta.data };
     } catch (error) {
         console.error('Erro ao listar credenciais:', error);
         return { success: false, error: error.message };

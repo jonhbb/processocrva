@@ -35,6 +35,7 @@
                 <p>Tramandaí/RS</p>
                 <div class="user-info">
                     <span id="nomeUsuario"></span>
+                    <span class="d-block small text-white-50 mb-1" id="perfilUsuario"></span>
                     <a href="#" class="d-block small text-white-50 mb-2" id="btnAlterarSenha"><i class="fas fa-key"></i> Alterar minha senha</a>
                     <button type="button" class="btn btn-sm btn-danger" id="btnLogout">
                         <i class="fas fa-sign-out-alt"></i> Sair
@@ -85,12 +86,28 @@
 
         <!-- Page Content -->
         <div id="content" tabindex="-1">
+            <div class="barra-topo d-flex align-items-center gap-3 mb-4">
             <!-- Receber processo (atalho global) -->
-            <form id="formReceber" class="receber-barra input-group mb-4" autocomplete="off">
-                <span class="input-group-text"><i class="fas fa-inbox"></i></span>
-                <input type="text" class="form-control" id="receberNumero" placeholder="Receber processo (número + Enter)" aria-label="Número do processo a receber">
-                <button type="submit" class="btn btn-success">Receber</button>
-            </form>
+                <form id="formReceber" class="receber-barra input-group flex-grow-1" autocomplete="off">
+                    <span class="input-group-text"><i class="fas fa-inbox"></i></span>
+                    <input type="text" class="form-control" id="receberNumero" placeholder="Receber processo (número + Enter)" aria-label="Número do processo a receber">
+                    <button type="submit" class="btn btn-success">Receber</button>
+                </form>
+                <!-- Sino de novidades -->
+                <div class="dropdown sino-novidades">
+                    <button type="button" class="btn btn-outline-secondary position-relative" id="btnSino" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Novidades" title="Novidades">
+                        <i class="fas fa-bell"></i>
+                        <span id="sinoContagem" class="badge rounded-pill bg-danger sino-badge d-none" aria-hidden="true">0</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end painel-novidades p-0">
+                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                            <strong>Novidades</strong>
+                            <button type="button" class="btn btn-link btn-sm p-0 d-none" id="btnMarcarTodasLidas">Marcar todas como lidas</button>
+                        </div>
+                        <div id="listaNovidades" class="painel-lista" role="list"></div>
+                    </div>
+                </div>
+            </div>
 
             <div id="home" class="page active">
                 <h2 class="mb-4">Dashboard - Controle de Processos</h2>
@@ -476,6 +493,56 @@
 
             <div id="configuracoes" class="page">
                 <h2 class="mb-4">Configurações</h2>
+                <div class="row mb-4 d-none" id="cardNovidadesAdmin" data-somente-programador>
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0"><i class="fas fa-bell"></i> Novidades (sino)</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="formNovidade" class="mb-4">
+                                    <div class="row">
+                                        <div class="col-md-8 mb-3">
+                                            <label for="novTitulo" class="form-label">Título</label>
+                                            <input type="text" class="form-control" id="novTitulo" maxlength="120">
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="novTipo" class="form-label">Tipo</label>
+                                            <select class="form-select" id="novTipo">
+                                                <option value="novidade">Novidade</option>
+                                                <option value="aviso">Aviso</option>
+                                                <option value="importante">Importante</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="novTexto" class="form-label">Texto</label>
+                                        <textarea class="form-control" id="novTexto" rows="3"></textarea>
+                                    </div>
+                                    <div class="row align-items-end">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="novExpira" class="form-label">Expira em (opcional)</label>
+                                            <input type="date" class="form-control" id="novExpira">
+                                        </div>
+                                        <div class="col-md-8 mb-3">
+                                            <button type="submit" class="btn btn-primary" id="btnPublicarNovidade">Publicar</button>
+                                            <button type="button" class="btn btn-outline-secondary d-none" id="btnCancelarEdicaoNovidade">Cancelar edição</button>
+                                        </div>
+                                    </div>
+                                </form>
+                                <div class="table-responsive">
+                                    <table class="table table-striped tabela-cards">
+                                        <thead>
+                                            <tr><th>Título</th><th>Tipo</th><th>Publicada / expira</th><th>Leituras</th><th>Ações</th></tr>
+                                        </thead>
+                                        <tbody id="tabelaNovidadesAdmin"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row mb-4">
                     <div class="col-md-12">
                         <div class="card">
@@ -780,6 +847,14 @@
                                 <label for="senhaCredencial" class="form-label">Senha</label>
                                 <input type="password" class="form-control" id="senhaCredencial" required>
                             </div>
+                            <div class="mb-3">
+                                <label for="perfilCredencial" class="form-label">Perfil</label>
+                                <select class="form-select" id="perfilCredencial">
+                                    <option value="usuario">Usuário</option>
+                                    <option value="administrador">Administrador</option>
+                                </select>
+                                <div class="form-text">Administrador gerencia credenciais, backup e configurações.</div>
+                            </div>
                             <button type="button" class="btn btn-primary" id="btnSalvarCredencial">Salvar</button>
                         </form>
                     </div>
@@ -797,6 +872,7 @@
                                     <tr>
                                         <th>Nome do Colaborador</th>
                                         <th>Usuário</th>
+                                        <th>Perfil</th>
                                         <th>Data de Criação</th>
                                         <th>Status</th>
                                         <th>Ações</th>
@@ -1167,9 +1243,10 @@
 
     <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
-        import { verificarSessao, fazerLogout } from './js/auth.js';
+        import { verificarSessao, fazerLogout, atualizarPerfilDaSessao } from './js/auth.js';
         import { iniciarAtalhos } from './js/atalhos.js';
-        import { obterUsuarioLogado, encerrarSessao, iniciarMonitorInatividade } from './js/sessao.js';
+        import { iniciarSino, iniciarGestaoNovidades } from './js/novidades.js';
+        import { obterUsuarioLogado, encerrarSessao, iniciarMonitorInatividade, ehAdministrador, ehProgramador, perfilDe, ROTULOS_PERFIL } from './js/sessao.js';
         import { iniciarMonitorConexao } from './js/ui.js';
 
         // Função para verificar autenticação
@@ -1180,15 +1257,23 @@
                 return;
             }
 
-            // Mostra o nome do usuário
-            const usuarioLogado = obterUsuarioLogado();
-            document.getElementById('nomeUsuario').textContent = usuarioLogado.nome;
+            // Nome, perfil e permissões na tela. Obs.: controle apenas de interface;
+            // a proteção real depende das regras do banco.
+            aplicarPermissoes(obterUsuarioLogado());
 
-            // Credenciais e Configurações (backup) só para o administrador.
-            // Obs.: controle apenas de interface; a proteção real depende das regras do banco.
-            if (usuarioLogado.usuario === 'admin') {
-                document.querySelectorAll('[data-somente-admin]').forEach(li => li.classList.remove('d-none'));
-            }
+            // Reconsulta o perfil: mudança de perfil vale sem novo login
+            atualizarPerfilDaSessao().then(usuario => {
+                if (usuario) aplicarPermissoes(usuario);
+            });
+        }
+
+        function aplicarPermissoes(usuario) {
+            document.getElementById('nomeUsuario').textContent = usuario.nome;
+            document.getElementById('perfilUsuario').textContent = ROTULOS_PERFIL[perfilDe(usuario)];
+            document.querySelectorAll('[data-somente-admin]').forEach(el => el.classList.toggle('d-none', !ehAdministrador(usuario)));
+            document.querySelectorAll('[data-somente-programador]').forEach(el => el.classList.toggle('d-none', !ehProgramador(usuario)));
+            if (ehProgramador(usuario) && document.getElementById('formNovidade')) iniciarGestaoNovidades();
+            window.dispatchEvent(new Event('permissoes-aplicadas'));
         }
 
         // Verifica autenticação ao carregar a página
@@ -1251,6 +1336,7 @@
         iniciarMonitorConexao();
         document.addEventListener('DOMContentLoaded', () => {
             iniciarAtalhos();
+            iniciarSino();
             document.getElementById('pularConteudo').addEventListener('click', (e) => {
                 e.preventDefault();
                 document.getElementById('content').focus();
@@ -1291,7 +1377,7 @@
     <script type="module">
         import { criarCredencial, verificarUsuarioExistente, listarCredenciais, atualizarCredencial, testarConexaoCredenciais } from './js/credenciais.js';
         import { verificarLogin } from './js/auth.js';
-        import { obterUsuarioLogado } from './js/sessao.js';
+        import { obterUsuarioLogado, ehAdministrador, ehProgramador, ROTULOS_PERFIL } from './js/sessao.js';
         import { esc, mostrarMensagem, comBotaoOcupado } from './js/ui.js';
 
         window.mostrarMensagem = mostrarMensagem;
@@ -1328,7 +1414,8 @@
             }
 
             // Criar nova credencial
-            const { success, error } = await criarCredencial(nomeColaborador, usuario, senha);
+            const perfil = document.getElementById('perfilCredencial').value;
+            const { success, error } = await criarCredencial(nomeColaborador, usuario, senha, perfil);
 
             if (success) {
                 mostrarMensagem('Credencial criada com sucesso!', 'success');
@@ -1343,21 +1430,51 @@
         document.getElementById('btnSalvarCredencial').addEventListener('click', (e) => comBotaoOcupado(e.currentTarget, 'Salvando...', salvarCredencial));
 
         // Função para carregar a lista de credenciais
+        function perfilDaCredencial(credencial) {
+            return credencial.perfil || (credencial.usuario === 'admin' ? 'administrador' : 'usuario');
+        }
+
+        // Programador só aparece como opção para quem é programador
+        function ajustarOpcoesPerfil() {
+            const select = document.getElementById('perfilCredencial');
+            const tem = !!select.querySelector('option[value="programador"]');
+            if (ehProgramador(obterUsuarioLogado()) && !tem) {
+                select.insertAdjacentHTML('beforeend', '<option value="programador">Programador</option>');
+            } else if (!ehProgramador(obterUsuarioLogado()) && tem) {
+                select.querySelector('option[value="programador"]').remove();
+            }
+        }
+
         async function carregarCredenciais() {
+            ajustarOpcoesPerfil();
             const { success, data } = await listarCredenciais();
             const tbody = document.getElementById('tabelaCredenciais');
-            tbody.innerHTML = '';
+            const linhas = document.createDocumentFragment(); // evita duplicar linhas se duas cargas se cruzarem
 
             if (success && data && data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Nenhuma credencial cadastrada.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma credencial cadastrada.</td></tr>';
+                return;
             }
 
             if (success && data) {
+                const eu = obterUsuarioLogado();
+                const souProgramador = ehProgramador(eu);
                 data.forEach(credencial => {
+                    const perfil = perfilDaCredencial(credencial);
+                    // não altera o próprio perfil/status; só programador mexe em programador
+                    const podeEditar = credencial.id !== eu.id && (souProgramador || perfil !== 'programador');
+                    const opcoes = ['usuario', 'administrador'].concat(souProgramador ? ['programador'] : [])
+                        .map(valor => `<option value="${valor}"${valor === perfil ? ' selected' : ''}>${ROTULOS_PERFIL[valor]}</option>`)
+                        .join('');
+                    const celulaPerfil = podeEditar && 'perfil' in credencial
+                        ? `<select class="form-select form-select-sm" data-perfil-id="${Number(credencial.id)}" aria-label="Perfil de ${esc(credencial.nome_colaborador)}">${opcoes}</select>`
+                        : `<span class="badge bg-secondary">${esc(ROTULOS_PERFIL[perfil] || perfil)}</span>`;
+
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td data-label="Colaborador">${esc(credencial.nome_colaborador)}</td>
                         <td data-label="Usuário">${esc(credencial.usuario)}</td>
+                        <td data-label="Perfil">${celulaPerfil}</td>
                         <td data-label="Criação">${esc(new Date(credencial.data_criacao).toLocaleDateString('pt-BR'))}</td>
                         <td data-label="Status">
                             <span class="badge ${credencial.status === 'ativo' ? 'bg-success' : 'bg-danger'}">
@@ -1365,16 +1482,29 @@
                             </span>
                         </td>
                         <td data-label="Ações">
-                            <button class="btn btn-sm ${credencial.status === 'ativo' ? 'btn-danger' : 'btn-success'}"
+                            <button class="btn btn-sm ${credencial.status === 'ativo' ? 'btn-danger' : 'btn-success'}"${podeEditar ? '' : ' disabled'}
                                     onclick="alterarStatusCredencial(${Number(credencial.id)}, '${credencial.status === 'ativo' ? 'ativo' : 'inativo'}')">
                                 ${credencial.status === 'ativo' ? 'Inativar' : 'Ativar'}
                             </button>
                         </td>
                     `;
-                    tbody.appendChild(tr);
+                    linhas.appendChild(tr);
                 });
+                tbody.replaceChildren(linhas);
             }
         }
+
+        document.getElementById('tabelaCredenciais').addEventListener('change', async (e) => {
+            const select = e.target.closest('[data-perfil-id]');
+            if (!select) return;
+            const { success } = await atualizarCredencial(Number(select.dataset.perfilId), { perfil: select.value });
+            if (success) {
+                mostrarMensagem(`Perfil alterado para ${ROTULOS_PERFIL[select.value]}.`, 'success');
+            } else {
+                mostrarMensagem('Não foi possível alterar o perfil. O script perfis_e_novidades.sql já foi executado no banco?', 'danger');
+            }
+            carregarCredenciais();
+        });
 
         // Função para alterar o status da credencial
         window.alterarStatusCredencial = async function(id, statusAtual) {
@@ -1391,8 +1521,11 @@
 
         // Carregar credenciais ao abrir a página (somente administrador)
         document.addEventListener('DOMContentLoaded', () => {
-            const logado = obterUsuarioLogado();
-            if (logado && logado.usuario === 'admin') carregarCredenciais();
+            if (ehAdministrador(obterUsuarioLogado())) carregarCredenciais();
+        });
+        // perfil reconsultado no banco (promovido/rebaixado sem novo login)
+        window.addEventListener('permissoes-aplicadas', () => {
+            if (ehAdministrador(obterUsuarioLogado())) carregarCredenciais();
         });
 
         // Alterar a própria senha
