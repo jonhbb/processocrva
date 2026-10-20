@@ -663,11 +663,16 @@
                             </div>
                             <button type="submit" class="btn btn-primary">Pesquisar</button>
                             <button type="button" class="btn btn-outline-secondary" id="btnLimparPesquisa"><i class="fas fa-times"></i> Limpar filtros</button>
-                            <button type="button" class="btn btn-secondary" id="exportarCSV">Exportar CSV</button>
-                            <button type="button" class="btn btn-secondary" id="exportarPDF">Exportar PDF</button>
+                            <button type="button" class="btn btn-secondary" id="btnExportar"><i class="fas fa-file-export"></i> <span id="btnExportarTexto">Exportar</span></button>
                         </form>
                     </div>
                 </div>
+                <div id="pesquisaVisoes" class="d-flex flex-wrap align-items-center gap-2 mb-2" aria-label="Visões da pesquisa"></div>
+                <form id="visaoNovaForm" class="input-group input-group-sm mb-2 d-none" style="max-width: 420px;">
+                    <input type="text" class="form-control" id="visaoNovaNome" maxlength="40" placeholder="Nome da visão (ex.: Parados na perícia)" aria-label="Nome da visão">
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                    <button type="button" class="btn btn-outline-secondary" id="visaoNovaCancelar">Cancelar</button>
+                </form>
                 <div id="pesquisaChips" class="d-flex flex-wrap gap-2 mb-3"></div>
                 <div class="d-md-none mb-3">
                     <label for="pesquisaOrdenarMobile" class="form-label">Ordenar por</label>
@@ -863,6 +868,28 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Exportar -->
+    <div class="modal fade" id="modalExportar" tabindex="-1" aria-labelledby="modalExportarLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalExportarLabel">Exportar resultados</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">Serão exportados os <strong id="exportarTotal">0</strong> processo(s) da pesquisa atual, na ordem em que aparecem na tela.</p>
+                    <div class="fw-semibold mb-2">Colunas</div>
+                    <div class="row" id="exportarColunas"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-outline-primary" id="btnExportarCsvPesquisa"><i class="fas fa-file-csv"></i> Baixar CSV</button>
+                    <button type="button" class="btn btn-primary" id="btnExportarPdfPesquisa"><i class="fas fa-file-pdf"></i> Baixar PDF</button>
                 </div>
             </div>
         </div>

@@ -15,6 +15,7 @@ import {
     testarConexao
 } from './supabase.js';
 import { esc, mostrarMensagem } from './ui.js';
+import { COLUNAS_EXPORT, exportarCSV, exportarPDF, imprimirEtiqueta } from './exportar.js';
 
 const ITENS_POR_PAGINA_PESQUISA = 10;
 const DIAS_ATENCAO_PADRAO = 30;
@@ -25,6 +26,9 @@ let pesquisaPaginaAtual = 1;
 let pesquisaCarregada = false;
 let pesquisaRequisicao = 0;
 let pesquisaSemLocalizacao = false;
+let pesquisaParados = false;
+let pesquisaDestaque = new Set();
+let relatorioAtual = [];
 let pesquisaOrdenacao = { campo: 'dataInicial', dir: 'desc' };
 let ultimoProcessoCadastradoId = null;
 let numeroDuplicadoId = null;
@@ -117,7 +121,31 @@ function coletarFiltrosPesquisa() {
         filtros[f.chave] = document.getElementById(f.campo).value.trim();
     });
     filtros.semLocalizacao = pesquisaSemLocalizacao;
+    filtros.parados = pesquisaParados;
     return filtros;
+}
+
+// Ignora acentos, maiúsculas, espaços e pontuação ("abc 1234" encontra "ABC1234")
+function normalizar(texto) {
+    return String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function correspondeTexto(processo, filtros) {
+    if (filtros.numeroProcesso && !normalizar(processo.numeroProcesso).includes(normalizar(filtros.numeroProcesso))) return false;
+    if (filtros.placa && !normalizar(processo.placa).includes(normalizar(filtros.placa))) return false;
+    if (filtros.busca) {
+        const campos = [processo.numeroProcesso, processo.requerente, processo.contato, processo.placa, processo.chassi, processo.motivoPendencia];
+        const palheiro = campos.map(normalizar).join('|');
+        const termos = filtros.busca.split(/\s+/).map(normalizar).filter(Boolean);
+        if (!termos.every(t => palheiro.includes(t))) return false;
+    }
+    return true;
+}
+
+function dataLimiteParados() {
+    const limite = new Date();
+    limite.setDate(limite.getDate() - diasAtencao);
+    return `${limite.getFullYear()}-${String(limite.getMonth() + 1).padStart(2, '0')}-${String(limite.getDate()).padStart(2, '0')}`;
 }
 
 function atualizarChipsPesquisa(filtros) {
@@ -150,6 +178,36 @@ function atualizarChipsPesquisa(filtros) {
     if (filtros.semLocalizacao) {
         adicionarChip('Sem localização física', () => { pesquisaSemLocalizacao = false; });
     }
+    if (filtros.parados) {
+        adicionarChip(`Parados há ${diasAtencao}+ dias`, () => { pesquisaParados = false; });
+    }
+}
+
+// Lembra filtros e ordenação ao navegar/recarregar na mesma aba
+function salvarEstadoPesquisa() {
+    try {
+        sessionStorage.setItem('pesquisaEstado', JSON.stringify({
+            filtros: coletarFiltrosPesquisa(),
+            ordenacao: pesquisaOrdenacao
+        }));
+    } catch (e) { /* armazenamento indisponível: ignora */ }
+}
+
+function restaurarEstadoPesquisa() {
+    try {
+        const estado = JSON.parse(sessionStorage.getItem('pesquisaEstado'));
+        if (!estado) return;
+        definirFiltrosPesquisa(estado.filtros || {});
+        if (estado.ordenacao) pesquisaOrdenacao = estado.ordenacao;
+    } catch (e) { /* estado inválido: ignora */ }
+}
+
+function definirFiltrosPesquisa(filtros) {
+    FILTROS_PESQUISA.forEach(f => {
+        document.getElementById(f.campo).value = filtros[f.chave] || '';
+    });
+    pesquisaSemLocalizacao = !!filtros.semLocalizacao;
+    pesquisaParados = !!filtros.parados;
 }
 
 async function executarPesquisa({ silencioso = false, manterPagina = false } = {}) {
@@ -157,11 +215,21 @@ async function executarPesquisa({ silencioso = false, manterPagina = false } = {
     const requisicao = ++pesquisaRequisicao;
     pesquisaCarregada = true;
     atualizarChipsPesquisa(filtros);
+    salvarEstadoPesquisa();
+    renderizarVisoes();
 
     try {
         if (!silencioso) window.mostrarLoading('Pesquisando...');
-        const processos = await buscarProcessos(filtros);
+        // Filtros estruturados no servidor; texto (busca, número, placa) aqui, ignorando acentos
+        const encontrados = await buscarProcessos({
+            tipoVeiculo: filtros.tipoVeiculo,
+            status: filtros.status,
+            localizacaoFisica: filtros.localizacaoFisica,
+            semLocalizacao: filtros.semLocalizacao,
+            dataAte: filtros.parados ? dataLimiteParados() : ''
+        });
         if (requisicao !== pesquisaRequisicao) return; // resposta antiga: descarta
+        const processos = encontrados.filter(p => correspondeTexto(p, filtros));
         pesquisaProcessosCache = processos;
         if (!manterPagina) pesquisaPaginaAtual = 1;
         // mantém marcados apenas os processos que continuam no resultado
@@ -177,22 +245,119 @@ async function executarPesquisa({ silencioso = false, manterPagina = false } = {
     }
 }
 
-function limparFiltrosPesquisa() {
-    FILTROS_PESQUISA.forEach(f => { document.getElementById(f.campo).value = ''; });
-    pesquisaSemLocalizacao = false;
+// Recarrega a pesquisa mantendo a página e destacando as linhas alteradas
+function recarregarPesquisa(idsAlterados = []) {
+    pesquisaDestaque = new Set(idsAlterados);
+    return executarPesquisa({ silencioso: true, manterPagina: true });
 }
 
-// Usado pelo dashboard: abre a pesquisa já filtrada
+function limparFiltrosPesquisa() {
+    definirFiltrosPesquisa({});
+}
+
+// Usado pelo dashboard e pelas visões: abre a pesquisa já filtrada
 function aplicarFiltrosPesquisa(filtros = {}, ordenacao = null) {
-    limparFiltrosPesquisa();
-    FILTROS_PESQUISA.forEach(f => {
-        if (filtros[f.chave]) document.getElementById(f.campo).value = filtros[f.chave];
-    });
-    pesquisaSemLocalizacao = !!filtros.semLocalizacao;
+    definirFiltrosPesquisa(filtros);
     if (ordenacao) pesquisaOrdenacao = ordenacao;
     pesquisaCarregada = true;
     navegarPara('pesquisa');
     executarPesquisa();
+}
+
+// Visões: atalhos prontos e pesquisas salvas pelo próprio usuário (neste navegador)
+const ORDEM_MAIS_ANTIGOS = { campo: 'dataInicial', dir: 'asc' };
+
+function visoesPadrao() {
+    return [
+        { nome: 'Pendentes', filtros: { status: 'Pendente' } },
+        { nome: `Parados há ${diasAtencao}+ dias`, filtros: { status: 'Pendente', parados: true }, ordenacao: ORDEM_MAIS_ANTIGOS },
+        { nome: 'Sem localização', filtros: { semLocalizacao: true } },
+        { nome: 'Em Perícia', filtros: { localizacaoFisica: 'Perícia' } },
+        { nome: 'Arquivo Morto', filtros: { localizacaoFisica: 'Arquivo Morto' } }
+    ];
+}
+
+function lerVisoesSalvas() {
+    try {
+        const lista = JSON.parse(localStorage.getItem('visoesPesquisa'));
+        return Array.isArray(lista) ? lista : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function gravarVisoesSalvas(lista) {
+    try {
+        localStorage.setItem('visoesPesquisa', JSON.stringify(lista));
+    } catch (e) {
+        mostrarMensagem('Não foi possível salvar a visão neste navegador.', 'warning');
+    }
+}
+
+function filtrosAtivosCompactos() {
+    const f = coletarFiltrosPesquisa();
+    const compacto = {};
+    Object.entries(f).forEach(([k, v]) => { if (v) compacto[k] = v; });
+    return compacto;
+}
+
+function mesmosFiltros(a, b) {
+    const normaliza = o => JSON.stringify(Object.keys(o || {}).filter(k => o[k]).sort().map(k => [k, o[k]]));
+    return normaliza(a) === normaliza(b);
+}
+
+function renderizarVisoes() {
+    const container = document.getElementById('pesquisaVisoes');
+    if (!container) return;
+    container.innerHTML = '';
+    const atuais = filtrosAtivosCompactos();
+
+    const rotulo = document.createElement('span');
+    rotulo.className = 'small text-muted';
+    rotulo.textContent = 'Visões:';
+    container.appendChild(rotulo);
+
+    const adicionar = (visao, indiceSalva) => {
+        const grupo = document.createElement('div');
+        grupo.className = 'btn-group btn-group-sm';
+        const botao = document.createElement('button');
+        botao.type = 'button';
+        const ativa = mesmosFiltros(visao.filtros, atuais);
+        botao.className = `btn ${ativa ? 'btn-primary' : 'btn-outline-primary'}`;
+        botao.textContent = visao.nome;
+        botao.addEventListener('click', () => aplicarFiltrosPesquisa(visao.filtros, visao.ordenacao || null));
+        grupo.appendChild(botao);
+        if (indiceSalva !== undefined) {
+            const remover = document.createElement('button');
+            remover.type = 'button';
+            remover.className = `btn ${ativa ? 'btn-primary' : 'btn-outline-primary'}`;
+            remover.innerHTML = '<i class="fas fa-times"></i>';
+            remover.setAttribute('aria-label', `Excluir visão ${visao.nome}`);
+            remover.title = 'Excluir esta visão';
+            remover.addEventListener('click', () => {
+                const lista = lerVisoesSalvas();
+                lista.splice(indiceSalva, 1);
+                gravarVisoesSalvas(lista);
+                renderizarVisoes();
+            });
+            grupo.appendChild(remover);
+        }
+        container.appendChild(grupo);
+    };
+
+    visoesPadrao().forEach(v => adicionar(v));
+    lerVisoesSalvas().forEach((v, i) => adicionar(v, i));
+
+    const salvar = document.createElement('button');
+    salvar.type = 'button';
+    salvar.className = 'btn btn-sm btn-link';
+    salvar.innerHTML = '<i class="fas fa-bookmark"></i> Salvar esta pesquisa';
+    salvar.disabled = Object.keys(atuais).length === 0;
+    salvar.addEventListener('click', () => {
+        document.getElementById('visaoNovaForm').classList.remove('d-none');
+        document.getElementById('visaoNovaNome').focus();
+    });
+    container.appendChild(salvar);
 }
 
 function ordenarProcessos(lista) {
@@ -243,6 +408,7 @@ function criarLinhaTabelaPesquisa(processo) {
     if (parado) tr.classList.add('processo-atrasado');
     const selecionado = pesquisaSelecionados.has(processo.id);
     if (selecionado) tr.classList.add('linha-selecionada');
+    if (pesquisaDestaque.has(processo.id)) tr.classList.add('linha-destaque');
     const dias = diasDesde(processo.dataInicial);
     const alertaParado = parado
         ? `<span class="badge bg-danger ms-1" title="Pendente desde ${esc(formatarDataBR(processo.dataInicial))}">há ${dias} dias</span>`
@@ -301,6 +467,7 @@ function menuAcoesHtml(processo) {
         ${itensMenuHtml(STATUS_LISTA, 'status', processo.status)}
         <li><hr class="dropdown-divider"></li>
         <li><button type="button" class="dropdown-item" data-acao="duplicar"><i class="fas fa-copy me-1"></i> Duplicar</button></li>
+        <li><button type="button" class="dropdown-item" data-acao="etiqueta"><i class="fas fa-print me-1"></i> Imprimir etiqueta</button></li>
     `;
 }
 
@@ -353,7 +520,7 @@ async function aplicarMovimentacao(ids, campos) {
         pesquisaSelecionados.clear();
         window.esconderLoading();
         mostrarMensagem(mensagem, 'success');
-        await executarPesquisa({ silencioso: true, manterPagina: true });
+        await recarregarPesquisa(ids);
         atualizarDashboard();
     } catch (error) {
         window.esconderLoading();
@@ -384,13 +551,27 @@ function renderizarTabelaPesquisaPaginada() {
     if (pesquisaPaginaAtual > totalPaginas) {
         pesquisaPaginaAtual = totalPaginas;
     }
+    const ordenados = ordenarProcessos(pesquisaProcessosCache);
+    if (pesquisaDestaque.size > 0) {
+        // leva para a página onde está o processo alterado
+        const posicao = ordenados.findIndex(p => pesquisaDestaque.has(p.id));
+        if (posicao >= 0) pesquisaPaginaAtual = Math.floor(posicao / ITENS_POR_PAGINA_PESQUISA) + 1;
+    }
     const inicio = (pesquisaPaginaAtual - 1) * ITENS_POR_PAGINA_PESQUISA;
-    const slice = ordenarProcessos(pesquisaProcessosCache).slice(inicio, inicio + ITENS_POR_PAGINA_PESQUISA);
+    const slice = ordenados.slice(inicio, inicio + ITENS_POR_PAGINA_PESQUISA);
 
     pesquisaIdsPagina = slice.map(p => p.id);
     slice.forEach(processo => tbody.appendChild(criarLinhaTabelaPesquisa(processo)));
     atualizarIndicadoresOrdenacao();
     atualizarBarraLote();
+
+    const destacada = tbody.querySelector('.linha-destaque');
+    if (destacada) destacada.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    pesquisaDestaque.clear();
+
+    const botaoExportar = document.getElementById('btnExportar');
+    botaoExportar.disabled = total === 0;
+    document.getElementById('btnExportarTexto').textContent = total > 0 ? `Exportar (${total})` : 'Exportar';
     document.getElementById('pesquisaVazio').classList.toggle('d-none', total !== 0);
 
     const nav = document.getElementById('pesquisaPaginacao');
@@ -517,7 +698,7 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
         if (resultado && !resultado.historicoOk) {
             mostrarMensagem('As alterações foram salvas, mas o histórico não pôde ser registrado.', 'warning');
         }
-        document.getElementById('pesquisaForm').dispatchEvent(new Event('submit'));
+        recarregarPesquisa(processo && processo.id ? [processo.id] : []);
     } catch (error) {
         window.esconderLoading();
         mostrarMensagem('Erro ao atualizar processo: ' + error, 'danger');
@@ -909,6 +1090,7 @@ let dadosRelatorio = [];
 
 // Funções para Relatórios
 async function gerarRelatorio(processos, titulo) {
+    relatorioAtual = processos;
     // Atualiza o título do relatório
     document.querySelector('#tabelaRelatorio').closest('.card').querySelector('.card-header h6').textContent = titulo;
 
@@ -1077,97 +1259,6 @@ document.getElementById('btnLimparFiltros').addEventListener('click', () => {
 });
 
 // Funções de exportação de relatórios
-function exportarRelatorioPDF(processos, titulo) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    // Cabeçalho
-    doc.setFontSize(16);
-    doc.text('CRVA 0371 - Tramandaí/RS', 14, 15);
-    doc.text(titulo, 14, 25);
-    
-    // Data do relatório
-    doc.setFontSize(10);
-    doc.text(`Data do relatório: ${new Date().toLocaleDateString()}`, 14, 35);
-
-    // Tabela de processos
-    const headers = [['Nº Processo', 'Data', 'Requerente', 'Veículo', 'Placa', 'Status', 'Motivo']];
-    const data = processos.map(p => [
-        p.numeroProcesso,
-        p.dataInicial,
-        p.requerente,
-        p.tipoVeiculo,
-        p.placa,
-        p.status,
-        p.motivoPendencia || '-'
-    ]);
-
-    doc.autoTable({
-        startY: 40,
-        head: headers,
-        body: data,
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [66, 139, 202] },
-        columnStyles: {
-            0: { cellWidth: 25 },
-            1: { cellWidth: 20 },
-            2: { cellWidth: 35 },
-            3: { cellWidth: 25 },
-            4: { cellWidth: 20 },
-            5: { cellWidth: 20 },
-            6: { cellWidth: 'auto' }
-        }
-    });
-
-    // Resumo
-    const totalProcessos = processos.length;
-    const aprovados = processos.filter(p => p.status === 'Aprovado').length;
-    const reprovados = processos.filter(p => p.status === 'Reprovado').length;
-    const cancelados = processos.filter(p => p.status === 'Cancelado').length;
-
-    const finalY = doc.previousAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.text('Resumo:', 14, finalY);
-    doc.setFontSize(10);
-    doc.text(`Total de Processos: ${totalProcessos}`, 14, finalY + 7);
-    doc.text(`Processos Aprovados: ${aprovados}`, 14, finalY + 14);
-    doc.text(`Processos Reprovados: ${reprovados}`, 14, finalY + 21);
-    doc.text(`Processos Cancelados: ${cancelados}`, 14, finalY + 28);
-
-    // Salvar o PDF
-    doc.save(`relatorio_processos_${new Date().toISOString().split('T')[0]}.pdf`);
-}
-
-function exportarRelatorioExcel(processos, titulo) {
-    // Criar array com cabeçalho
-    const headers = ['Número do Processo', 'Data', 'Requerente', 'Veículo', 'Placa', 'Status', 'Motivo da Pendência'];
-    
-    // Criar linhas de dados
-    const rows = processos.map(p => [
-        p.numeroProcesso,
-        p.dataInicial,
-        p.requerente,
-        p.tipoVeiculo,
-        p.placa,
-        p.status,
-        p.motivoPendencia || '-'
-    ]);
-
-    // Juntar cabeçalho e dados
-    const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.join(','))
-    ].join('\n');
-
-    // Criar blob e fazer download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `relatorio_processos_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-}
-
 function formatarDataBR(dataISO) {
     if (!dataISO) return '';
     const [ano, mes, dia] = dataISO.split('-');
@@ -1249,6 +1340,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Configurações (prazo de atenção) antes de desenhar o dashboard
         await carregarConfiguracoes();
+
+        // Filtros e ordenação da pesquisa anterior (mesma aba)
+        restaurarEstadoPesquisa();
 
         // Atualiza o dashboard
         atualizarDashboard();
@@ -1369,6 +1463,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 aplicarMovimentacao([id], { status: botao.dataset.valor });
             } else if (botao.dataset.acao === 'duplicar') {
                 duplicarProcesso(processo);
+            } else if (botao.dataset.acao === 'etiqueta') {
+                imprimirEtiqueta(processo);
             }
         });
 
@@ -1470,6 +1566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     pesquisaOrdenacao = { campo, dir: campo === 'dataInicial' ? 'desc' : 'asc' };
                 }
                 pesquisaPaginaAtual = 1;
+                salvarEstadoPesquisa();
                 renderizarTabelaPesquisaPaginada();
             });
         });
@@ -1478,6 +1575,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const [campo, dir] = e.target.value.split(':');
             pesquisaOrdenacao = { campo, dir };
             pesquisaPaginaAtual = 1;
+            salvarEstadoPesquisa();
             renderizarTabelaPesquisaPaginada();
         });
 
@@ -1555,68 +1653,96 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Botões de exportação
-        document.getElementById('exportarCSV').addEventListener('click', async () => {
+        // Exportação da pesquisa (escolha de colunas) e dos relatórios
+        const colunasSalvas = () => {
             try {
-                const processos = await buscarProcessos({});
-                exportarCSV(processos);
-                mostrarMensagem('Arquivo CSV exportado com sucesso!');
-            } catch (error) {
-                mostrarMensagem('Erro ao exportar CSV: ' + error, 'danger');
-            }
+                const lista = JSON.parse(localStorage.getItem('colunasExportacao'));
+                if (Array.isArray(lista) && lista.length > 0) return lista;
+            } catch (e) { /* usa o padrão */ }
+            return COLUNAS_EXPORT.map(c => c.chave);
+        };
+
+        document.getElementById('btnExportar').addEventListener('click', () => {
+            const marcadas = colunasSalvas();
+            document.getElementById('exportarTotal').textContent = pesquisaProcessosCache.length;
+            document.getElementById('exportarColunas').innerHTML = COLUNAS_EXPORT.map(c => `
+                <div class="col-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="col-${c.chave}" value="${c.chave}"${marcadas.includes(c.chave) ? ' checked' : ''}>
+                        <label class="form-check-label" for="col-${c.chave}">${esc(c.rotulo)}</label>
+                    </div>
+                </div>`).join('');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalExportar')).show();
         });
 
-        document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+        const exportarPesquisa = (formato) => {
+            const chaves = [...document.querySelectorAll('#exportarColunas input:checked')].map(i => i.value);
+            if (chaves.length === 0) {
+                mostrarMensagem('Selecione ao menos uma coluna.', 'warning');
+                return;
+            }
             try {
-                const titulo = document.querySelector('#tabelaRelatorio').closest('.card').querySelector('.card-header h6').textContent;
-                const tbody = document.getElementById('corpoRelatorio');
-                const processos = Array.from(tbody.querySelectorAll('tr')).map(tr => ({
-                    numeroProcesso: tr.cells[0].textContent,
-                    dataInicial: tr.cells[1].textContent,
-                    requerente: tr.cells[2].textContent,
-                    tipoVeiculo: tr.cells[3].textContent,
-                    placa: tr.cells[4].textContent,
-                    status: tr.cells[5].textContent,
-                    motivoPendencia: tr.cells[6].textContent
-                }));
+                localStorage.setItem('colunasExportacao', JSON.stringify(chaves));
+            } catch (e) { /* ignora */ }
 
-                if (processos.length === 0) {
-                    mostrarMensagem('Não há dados para exportar', 'warning');
-                    return;
-                }
+            const colunas = COLUNAS_EXPORT.filter(c => chaves.includes(c.chave));
+            const lista = ordenarProcessos(pesquisaProcessosCache);
+            try {
+                if (formato === 'csv') exportarCSV(lista, colunas, 'processos');
+                else exportarPDF(lista, colunas, 'Pesquisa de processos', 'processos');
+                bootstrap.Modal.getInstance(document.getElementById('modalExportar')).hide();
+                mostrarMensagem(`Arquivo ${formato.toUpperCase()} gerado com ${lista.length} processo(s).`, 'success');
+            } catch (error) {
+                mostrarMensagem('Erro ao exportar: ' + error, 'danger');
+            }
+        };
+        document.getElementById('btnExportarCsvPesquisa').addEventListener('click', () => exportarPesquisa('csv'));
+        document.getElementById('btnExportarPdfPesquisa').addEventListener('click', () => exportarPesquisa('pdf'));
 
-                exportarRelatorioPDF(processos, titulo);
+        const tituloRelatorio = () => document.querySelector('#tabelaRelatorio').closest('.card').querySelector('.card-header h6').textContent;
+        document.getElementById('btnExportarPDF').addEventListener('click', () => {
+            if (relatorioAtual.length === 0) {
+                mostrarMensagem('Não há dados para exportar', 'warning');
+                return;
+            }
+            try {
+                exportarPDF(relatorioAtual, COLUNAS_EXPORT, tituloRelatorio(), 'relatorio_processos');
                 mostrarMensagem('Relatório PDF gerado com sucesso!', 'success');
             } catch (error) {
                 mostrarMensagem('Erro ao gerar PDF: ' + error, 'danger');
             }
         });
-
-        document.getElementById('btnExportarExcel').addEventListener('click', async () => {
+        document.getElementById('btnExportarExcel').addEventListener('click', () => {
+            if (relatorioAtual.length === 0) {
+                mostrarMensagem('Não há dados para exportar', 'warning');
+                return;
+            }
             try {
-                const titulo = document.querySelector('#tabelaRelatorio').closest('.card').querySelector('.card-header h6').textContent;
-                const tbody = document.getElementById('corpoRelatorio');
-                const processos = Array.from(tbody.querySelectorAll('tr')).map(tr => ({
-                    numeroProcesso: tr.cells[0].textContent,
-                    dataInicial: tr.cells[1].textContent,
-                    requerente: tr.cells[2].textContent,
-                    tipoVeiculo: tr.cells[3].textContent,
-                    placa: tr.cells[4].textContent,
-                    status: tr.cells[5].textContent.replace(/\s+/g, ''), // Remove espaços extras
-                    motivoPendencia: tr.cells[6].textContent
-                }));
-
-                if (processos.length === 0) {
-                    mostrarMensagem('Não há dados para exportar', 'warning');
-                    return;
-                }
-
-                exportarRelatorioExcel(processos, titulo);
-                mostrarMensagem('Relatório Excel gerado com sucesso!', 'success');
+                exportarCSV(relatorioAtual, COLUNAS_EXPORT, 'relatorio_processos');
+                mostrarMensagem('Relatório exportado com sucesso!', 'success');
             } catch (error) {
-                mostrarMensagem('Erro ao gerar Excel: ' + error, 'danger');
+                mostrarMensagem('Erro ao gerar arquivo: ' + error, 'danger');
             }
         });
+
+        // Visões: salvar a pesquisa atual
+        const formVisao = document.getElementById('visaoNovaForm');
+        formVisao.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('visaoNovaNome').value.trim();
+            if (!nome) return;
+            const lista = lerVisoesSalvas();
+            lista.push({ nome, filtros: filtrosAtivosCompactos(), ordenacao: { ...pesquisaOrdenacao } });
+            gravarVisoesSalvas(lista);
+            formVisao.classList.add('d-none');
+            document.getElementById('visaoNovaNome').value = '';
+            renderizarVisoes();
+            mostrarMensagem(`Visão "${nome}" salva.`, 'success');
+        });
+        document.getElementById('visaoNovaCancelar').addEventListener('click', () => {
+            formVisao.classList.add('d-none');
+        });
+        renderizarVisoes();
 
         // Modal de alteração de status
         document.getElementById('btnSalvarStatus').addEventListener('click', async () => {
@@ -1639,7 +1765,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 modal.hide();
                 
                 mostrarMensagem('Status atualizado com sucesso!');
-                document.getElementById('pesquisaForm').dispatchEvent(new Event('submit'));
+                recarregarPesquisa(processo && processo.id ? [processo.id] : []);
                 atualizarDashboard();
             } catch (error) {
                 window.esconderLoading();
@@ -1668,7 +1794,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 modal.hide();
                 
                 mostrarMensagem('Número do processo atualizado com sucesso!');
-                document.getElementById('pesquisaForm').dispatchEvent(new Event('submit'));
+                recarregarPesquisa(processo && processo.id ? [processo.id] : []);
             } catch (error) {
                 window.esconderLoading();
                 mostrarMensagem('Erro ao alterar número do processo: ' + error, 'danger');

@@ -593,3 +593,70 @@ tr.linha-selecionada > td {
     font-weight: 600;
     fill: #343a40;
 }
+
+/* Impressão de etiqueta */
+#areaImpressao {
+    display: none;
+}
+
+.etiqueta {
+    width: 100%;
+    max-width: 10cm;
+    padding: 0.5cm;
+    border: 2px solid #000;
+    font-size: 11pt;
+    color: #000;
+}
+
+.etiqueta-topo {
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.2cm;
+}
+
+.etiqueta-numero {
+    margin: 0.3cm 0;
+    font-size: 26pt;
+    font-weight: 700;
+    text-align: center;
+}
+
+.etiqueta-rotulo {
+    font-weight: 600;
+}
+
+.etiqueta-local {
+    margin: 0.25cm 0;
+    padding: 0.15cm;
+    border: 2px solid #000;
+    font-size: 16pt;
+    font-weight: 700;
+    text-align: center;
+}
+
+.etiqueta-rodape {
+    margin-top: 0.25cm;
+    font-size: 8pt;
+    text-align: right;
+}
+
+@media print {
+    body.imprimindo-etiqueta > *:not(#areaImpressao) {
+        display: none !important;
+    }
+
+    body.imprimindo-etiqueta #areaImpressao {
+        display: block !important;
+    }
+}
+
+/* Destaque da linha recém-alterada */
+@keyframes destaque-linha {
+    from { background-color: #fff3cd; }
+    to { background-color: transparent; }
+}
+
+tr.linha-destaque > td {
+    animation: destaque-linha 2.5s ease-out;
+}

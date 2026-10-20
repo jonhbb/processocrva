@@ -253,6 +253,9 @@ async function buscarProcessos(filtros = {}) {
         if (filtros.localizacaoFisica) {
             query = query.eq('localizacao_fisica', filtros.localizacaoFisica);
         }
+        if (filtros.dataAte) {
+            query = query.lte('data_inicial', filtros.dataAte);
+        }
         if (filtros.semLocalizacao) {
             query = query.or('localizacao_fisica.is.null,localizacao_fisica.eq.');
         }
