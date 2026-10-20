@@ -72,3 +72,41 @@ export function iniciarMonitorInatividade({ limiteMs = 30 * 60 * 1000, avisoMs =
         }
     };
 }
+
+// Perfis: usuario | administrador | programador (o programador tem todos os poderes do administrador).
+// Sessões antigas, sem perfil, tratam o usuário "admin" como administrador.
+export const ROTULOS_PERFIL = {
+    usuario: 'Usuário',
+    administrador: 'Administrador',
+    programador: 'Programador'
+};
+
+export function perfilDe(usuario) {
+    if (!usuario) return 'usuario';
+    if (usuario.perfil) return usuario.perfil;
+    return usuario.usuario === 'admin' ? 'administrador' : 'usuario';
+}
+
+export function ehProgramador(usuario) {
+    return perfilDe(usuario) === 'programador';
+}
+
+export function ehAdministrador(usuario) {
+    return ['administrador', 'programador'].includes(perfilDe(usuario));
+}
+
+// Atualiza dados do usuário na sessão (mantém onde ela foi gravada: aba ou "manter conectado")
+export function atualizarUsuarioLogado(alteracoes) {
+    try {
+        const daAba = JSON.parse(sessionStorage.getItem(CHAVE));
+        if (daAba) {
+            sessionStorage.setItem(CHAVE, JSON.stringify({ ...daAba, ...alteracoes }));
+            return;
+        }
+        const permanente = JSON.parse(localStorage.getItem(CHAVE));
+        if (permanente && permanente.usuario) {
+            permanente.usuario = { ...permanente.usuario, ...alteracoes };
+            localStorage.setItem(CHAVE, JSON.stringify(permanente));
+        }
+    } catch (e) { /* ignora */ }
+}
