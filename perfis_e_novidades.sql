@@ -10,6 +10,9 @@ ALTER TABLE credenciais ADD CONSTRAINT credenciais_perfil_check
 -- O usuário "admin" atual continua administrador
 UPDATE credenciais SET perfil = 'administrador' WHERE usuario = 'admin' AND perfil = 'usuario';
 
+-- Marcelo Roque precisa de acesso a Credenciais: administrador
+UPDATE credenciais SET perfil = 'administrador' WHERE usuario = 'Roque';
+
 -- Defina o programador (troque SEU_USUARIO pelo login). O programador tem todos os poderes
 -- do administrador e é o único que publica novidades e promove outro programador.
 -- UPDATE credenciais SET perfil = 'programador' WHERE usuario = 'SEU_USUARIO';
