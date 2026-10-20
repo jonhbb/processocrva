@@ -2,6 +2,7 @@
 import { 
     adicionarProcesso, 
     atualizarProcesso, 
+    atualizarEmLote,
     buscarProcessoPorId, 
     buscarProcessos, 
     buscarProcessoPorNumero,
@@ -22,6 +23,11 @@ let pesquisaSemLocalizacao = false;
 let pesquisaOrdenacao = { campo: 'dataInicial', dir: 'desc' };
 let ultimoProcessoCadastradoId = null;
 let numeroDuplicadoId = null;
+let pesquisaSelecionados = new Set();
+let pesquisaIdsPagina = [];
+
+const LOCALIZACOES = ['Pendentes', 'Perícia', 'Arquivo Morto', 'Vistoria Avulsa', 'Processo finalizado'];
+const STATUS_LISTA = ['Pendente', 'Aprovado', 'Reprovado', 'Cancelado', 'Finalizado'];
 
 function hojeISO() {
     const d = new Date();
@@ -141,7 +147,7 @@ function atualizarChipsPesquisa(filtros) {
     }
 }
 
-async function executarPesquisa({ silencioso = false } = {}) {
+async function executarPesquisa({ silencioso = false, manterPagina = false } = {}) {
     const filtros = coletarFiltrosPesquisa();
     const requisicao = ++pesquisaRequisicao;
     pesquisaCarregada = true;
@@ -152,7 +158,10 @@ async function executarPesquisa({ silencioso = false } = {}) {
         const processos = await buscarProcessos(filtros);
         if (requisicao !== pesquisaRequisicao) return; // resposta antiga: descarta
         pesquisaProcessosCache = processos;
-        pesquisaPaginaAtual = 1;
+        if (!manterPagina) pesquisaPaginaAtual = 1;
+        // mantém marcados apenas os processos que continuam no resultado
+        const idsAtuais = new Set(processos.map(p => p.id));
+        pesquisaSelecionados = new Set([...pesquisaSelecionados].filter(id => idsAtuais.has(id)));
         renderizarTabelaPesquisaPaginada();
     } catch (error) {
         if (requisicao === pesquisaRequisicao) {
@@ -227,11 +236,15 @@ function criarLinhaTabelaPesquisa(processo) {
     const tr = document.createElement('tr');
     const parado = estaParado(processo);
     if (parado) tr.classList.add('processo-atrasado');
+    const selecionado = pesquisaSelecionados.has(processo.id);
+    if (selecionado) tr.classList.add('linha-selecionada');
     const dias = diasDesde(processo.dataInicial);
     const alertaParado = parado
         ? `<span class="badge bg-danger ms-1" title="Pendente desde ${esc(formatarDataBR(processo.dataInicial))}">há ${dias} dias</span>`
         : '';
+    tr.dataset.id = processo.id;
     tr.innerHTML = `
+        <td data-label="Selecionar"><input type="checkbox" class="form-check-input chk-linha" aria-label="Selecionar processo ${esc(processo.numeroProcesso)}"${selecionado ? ' checked' : ''}></td>
         <td data-label="Número">${esc(processo.numeroProcesso) || '-'}</td>
         <td data-label="Data">${esc(formatarDataBR(processo.dataInicial))}</td>
         <td data-label="Requerente">${esc(processo.requerente)}</td>
@@ -242,17 +255,119 @@ function criarLinhaTabelaPesquisa(processo) {
         <td data-label="Motivo">${esc(processo.motivoPendencia) || '-'}</td>
         <td data-label="Localização"><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${esc(processo.localizacaoFisica) || '-'}</span></td>
         <td data-label="Ações">
-            <div class="btn-group" role="group">
-                <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${Number(processo.id)})">
-                    <i class="fas fa-edit"></i> Editar
-                </button>
-                <button type="button" class="btn btn-sm btn-info" onclick="window.abrirModalHistorico(${Number(processo.id)})">
-                    <i class="fas fa-history"></i> Histórico
-                </button>
+            <div class="d-flex gap-1 justify-content-end">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${Number(processo.id)})">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button type="button" class="btn btn-sm btn-info" onclick="window.abrirModalHistorico(${Number(processo.id)})">
+                        <i class="fas fa-history"></i> Histórico
+                    </button>
+                </div>
+                <div class="dropdown">
+                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="Mover e mais ações" title="Mover e mais ações">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">${menuAcoesHtml(processo)}</ul>
+                </div>
             </div>
         </td>
     `;
+    // posição fixa evita que o menu seja cortado pela tabela rolável
+    tr.querySelectorAll('[data-bs-toggle="dropdown"]').forEach(el => {
+        new bootstrap.Dropdown(el, { popperConfig: cfg => ({ ...cfg, strategy: 'fixed' }) });
+    });
     return tr;
+}
+
+function itensMenuHtml(lista, acao, atual) {
+    return lista.map(valor => {
+        const ativo = valor === atual;
+        return `<li><button type="button" class="dropdown-item${ativo ? ' active' : ''}" data-acao="${acao}" data-valor="${esc(valor)}"${ativo ? ' disabled' : ''}>${esc(valor)}</button></li>`;
+    }).join('');
+}
+
+function menuAcoesHtml(processo) {
+    return `
+        <li><h6 class="dropdown-header">Mover para</h6></li>
+        ${itensMenuHtml(LOCALIZACOES, 'mover', processo.localizacaoFisica)}
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-header">Alterar status</h6></li>
+        ${itensMenuHtml(STATUS_LISTA, 'status', processo.status)}
+        <li><hr class="dropdown-divider"></li>
+        <li><button type="button" class="dropdown-item" data-acao="duplicar"><i class="fas fa-copy me-1"></i> Duplicar</button></li>
+    `;
+}
+
+// Seleção e ações em lote
+function atualizarBarraLote() {
+    const quantidade = pesquisaSelecionados.size;
+    const barra = document.getElementById('pesquisaLote');
+    barra.classList.toggle('d-none', quantidade === 0);
+    barra.classList.toggle('d-flex', quantidade > 0);
+    document.getElementById('loteContagem').textContent = quantidade;
+
+    const marcados = pesquisaIdsPagina.filter(id => pesquisaSelecionados.has(id)).length;
+    const todos = pesquisaIdsPagina.length > 0 && marcados === pesquisaIdsPagina.length;
+    ['loteTodos', 'loteTodosMobile'].forEach(id => {
+        const caixa = document.getElementById(id);
+        caixa.checked = todos;
+        caixa.indeterminate = marcados > 0 && !todos;
+    });
+}
+
+async function aplicarMovimentacao(ids, campos) {
+    if (ids.length === 0) return;
+    const porId = id => pesquisaProcessosCache.find(p => p.id === id);
+
+    try {
+        window.mostrarLoading('Atualizando...');
+
+        if (campos.status === 'Finalizado' && campos.localizacaoFisica === undefined) {
+            // Finalizado sugere "Processo finalizado" quando a localização está vazia
+            const semLocal = ids.filter(id => !(porId(id) && porId(id).localizacaoFisica));
+            const comLocal = ids.filter(id => !semLocal.includes(id));
+            await atualizarEmLote(semLocal, { status: 'Finalizado', localizacaoFisica: 'Processo finalizado' });
+            await atualizarEmLote(comLocal, { status: 'Finalizado' });
+        } else {
+            await atualizarEmLote(ids, campos);
+        }
+
+        let mensagem;
+        if (ids.length === 1) {
+            const numero = (porId(ids[0]) && porId(ids[0]).numeroProcesso) || 'sem número';
+            mensagem = campos.localizacaoFisica !== undefined
+                ? `Processo ${numero} movido para ${campos.localizacaoFisica}.`
+                : `Status do processo ${numero} alterado para ${campos.status}.`;
+        } else {
+            mensagem = campos.localizacaoFisica !== undefined
+                ? `${ids.length} processos movidos para ${campos.localizacaoFisica}.`
+                : `Status de ${ids.length} processos alterado para ${campos.status}.`;
+        }
+
+        pesquisaSelecionados.clear();
+        window.esconderLoading();
+        mostrarMensagem(mensagem, 'success');
+        await executarPesquisa({ silencioso: true, manterPagina: true });
+        atualizarDashboard();
+    } catch (error) {
+        window.esconderLoading();
+        mostrarMensagem('Erro ao atualizar: ' + error.message, 'danger');
+    }
+}
+
+function duplicarProcesso(processo) {
+    limparFormulario('processoForm');
+    prepararFormularioCadastro();
+    navegarPara('cadastro');
+    document.getElementById('requerente').value = processo.requerente || '';
+    document.getElementById('contato').value = processo.contato || '';
+    document.getElementById('status').value = processo.status || '';
+    document.getElementById('localizacaoFisica').value = processo.localizacaoFisica || '';
+    document.getElementById('motivoPendencia').value = processo.motivoPendencia || '';
+    window.dispatchEvent(new Event('regra-localizacao'));
+    mostrarMensagem(`Dados de ${processo.requerente || 'requerente'} copiados. Informe o número e o veículo.`, 'info');
+    document.getElementById('numeroProcesso').focus();
 }
 
 function renderizarTabelaPesquisaPaginada() {
@@ -267,8 +382,10 @@ function renderizarTabelaPesquisaPaginada() {
     const inicio = (pesquisaPaginaAtual - 1) * ITENS_POR_PAGINA_PESQUISA;
     const slice = ordenarProcessos(pesquisaProcessosCache).slice(inicio, inicio + ITENS_POR_PAGINA_PESQUISA);
 
+    pesquisaIdsPagina = slice.map(p => p.id);
     slice.forEach(processo => tbody.appendChild(criarLinhaTabelaPesquisa(processo)));
     atualizarIndicadoresOrdenacao();
+    atualizarBarraLote();
     document.getElementById('pesquisaVazio').classList.toggle('d-none', total !== 0);
 
     const nav = document.getElementById('pesquisaPaginacao');
@@ -982,8 +1099,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ultimoProcessoCadastradoId = await adicionarProcesso(processo);
                 window.esconderLoading();
                 document.getElementById('cadastroSucessoNumero').textContent = processo.numeroProcesso || '(sem número)';
+                const manter = document.getElementById('manterDados').checked;
+                const anteriores = {
+                    status: processo.status,
+                    localizacaoFisica: processo.localizacaoFisica,
+                    tipoVeiculo: processo.tipoVeiculo
+                };
                 limparFormulario('processoForm');
                 prepararFormularioCadastro();
+                if (manter) {
+                    Object.entries(anteriores).forEach(([campo, valor]) => {
+                        document.getElementById(campo).value = valor;
+                    });
+                    window.dispatchEvent(new Event('regra-localizacao'));
+                }
                 pesquisaCarregada = false;
                 new bootstrap.Modal(document.getElementById('modalCadastroSucesso')).show();
                 atualizarDashboard();
@@ -1013,6 +1142,101 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('pesquisaForm').addEventListener('submit', (e) => {
             e.preventDefault();
             executarPesquisa();
+        });
+
+        // Seleção, mover e duplicar (delegação de eventos na tabela)
+        const tabelaResultados = document.getElementById('tabelaResultados');
+        tabelaResultados.addEventListener('change', (e) => {
+            if (!e.target.classList.contains('chk-linha')) return;
+            const tr = e.target.closest('tr');
+            const id = Number(tr.dataset.id);
+            if (e.target.checked) pesquisaSelecionados.add(id);
+            else pesquisaSelecionados.delete(id);
+            tr.classList.toggle('linha-selecionada', e.target.checked);
+            atualizarBarraLote();
+        });
+
+        tabelaResultados.addEventListener('click', (e) => {
+            const botao = e.target.closest('[data-acao]');
+            if (!botao) return;
+            const id = Number(botao.closest('tr').dataset.id);
+            const processo = pesquisaProcessosCache.find(p => p.id === id);
+            if (!processo) return;
+
+            if (botao.dataset.acao === 'mover') {
+                aplicarMovimentacao([id], { localizacaoFisica: botao.dataset.valor });
+            } else if (botao.dataset.acao === 'status') {
+                aplicarMovimentacao([id], { status: botao.dataset.valor });
+            } else if (botao.dataset.acao === 'duplicar') {
+                duplicarProcesso(processo);
+            }
+        });
+
+        const alternarPagina = (marcar) => {
+            pesquisaIdsPagina.forEach(id => marcar ? pesquisaSelecionados.add(id) : pesquisaSelecionados.delete(id));
+            renderizarTabelaPesquisaPaginada();
+        };
+        document.getElementById('loteTodos').addEventListener('change', (e) => alternarPagina(e.target.checked));
+        document.getElementById('loteTodosMobile').addEventListener('change', (e) => alternarPagina(e.target.checked));
+
+        document.getElementById('loteMenuLocal').innerHTML = itensMenuHtml(LOCALIZACOES, 'lote-mover');
+        document.getElementById('loteMenuStatus').innerHTML = itensMenuHtml(STATUS_LISTA, 'lote-status');
+        document.getElementById('pesquisaLote').addEventListener('click', (e) => {
+            const botao = e.target.closest('[data-acao]');
+            if (!botao) return;
+            const ids = [...pesquisaSelecionados];
+            aplicarMovimentacao(ids, botao.dataset.acao === 'lote-mover'
+                ? { localizacaoFisica: botao.dataset.valor }
+                : { status: botao.dataset.valor });
+        });
+        document.getElementById('loteLimpar').addEventListener('click', () => {
+            pesquisaSelecionados.clear();
+            renderizarTabelaPesquisaPaginada();
+        });
+
+        // Receber processo (atalho)
+        document.getElementById('formReceber').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const campo = document.getElementById('receberNumero');
+            const numero = campo.value.trim();
+            if (!numero) return;
+
+            try {
+                const existente = await buscarProcessoPorNumero(numero);
+                if (existente) {
+                    campo.value = '';
+                    window.abrirModalEditar(existente.id);
+                } else {
+                    document.getElementById('receberNumeroNaoEncontrado').textContent = numero;
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalReceber')).show();
+                }
+            } catch (error) {
+                mostrarMensagem('Erro ao buscar o processo: ' + error.message, 'danger');
+            }
+        });
+
+        document.getElementById('btnReceberCadastrar').addEventListener('click', () => {
+            const modalEl = document.getElementById('modalReceber');
+            const campo = document.getElementById('receberNumero');
+            const numero = campo.value.trim();
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                navegarPara('cadastro');
+                document.getElementById('numeroProcesso').value = numero;
+                campo.value = '';
+                document.getElementById('requerente').focus();
+            }, { once: true });
+            bootstrap.Modal.getInstance(modalEl).hide();
+        });
+
+        // Manter dados do último cadastro
+        const manterDados = document.getElementById('manterDados');
+        try {
+            manterDados.checked = localStorage.getItem('manterDadosCadastro') === '1';
+        } catch (e) { /* armazenamento indisponível: segue sem lembrar */ }
+        manterDados.addEventListener('change', () => {
+            try {
+                localStorage.setItem('manterDadosCadastro', manterDados.checked ? '1' : '0');
+            } catch (e) { /* ignora */ }
         });
 
         // Pesquisa ao digitar (debounce) e ao trocar filtros

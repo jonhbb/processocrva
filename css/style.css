@@ -460,3 +460,22 @@ tr.processo-atrasado > td {
         padding-top: 64px; /* espaço para o botão do menu */
     }
 }
+
+/* Receber processo / ações em lote */
+.receber-barra {
+    max-width: 640px;
+}
+
+#tabelaResultados .form-check-input {
+    cursor: pointer;
+}
+
+tr.linha-selecionada > td {
+    background-color: #e7efff !important;
+}
+
+@media (max-width: 767.98px) {
+    .receber-barra {
+        max-width: none;
+    }
+}

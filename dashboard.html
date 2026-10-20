@@ -75,6 +75,13 @@
 
         <!-- Page Content -->
         <div id="content">
+            <!-- Receber processo (atalho global) -->
+            <form id="formReceber" class="receber-barra input-group mb-4" autocomplete="off">
+                <span class="input-group-text"><i class="fas fa-inbox"></i></span>
+                <input type="text" class="form-control" id="receberNumero" placeholder="Receber processo: digite o número e pressione Enter" aria-label="Número do processo a receber">
+                <button type="submit" class="btn btn-success">Receber</button>
+            </form>
+
             <div id="home" class="page active">
                 <h2 class="mb-4">Dashboard - Controle de Processos</h2>
                 
@@ -534,7 +541,13 @@
                         <label for="motivoPendencia" class="form-label">Motivo da Pendência</label>
                         <textarea class="form-control" id="motivoPendencia" rows="3" required></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary">Salvar Processo</button>
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <button type="submit" class="btn btn-primary">Salvar Processo</button>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="manterDados">
+                            <label class="form-check-label" for="manterDados">Manter status, localização e tipo de veículo do último</label>
+                        </div>
+                    </div>
                 </form>
             </div>
 
@@ -617,10 +630,27 @@
                     </select>
                 </div>
                 <div id="resultadosPesquisa">
+                    <div id="pesquisaLote" class="alert alert-primary d-none flex-wrap align-items-center gap-2 py-2" role="region" aria-label="Ações em lote">
+                        <span><strong id="loteContagem">0</strong> selecionado(s)</span>
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"><i class="fas fa-map-marker-alt"></i> Mover para</button>
+                            <ul class="dropdown-menu" id="loteMenuLocal"></ul>
+                        </div>
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"><i class="fas fa-exchange-alt"></i> Alterar status</button>
+                            <ul class="dropdown-menu" id="loteMenuStatus"></ul>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" id="loteLimpar">Limpar seleção</button>
+                    </div>
+                    <div class="form-check d-md-none mb-2">
+                        <input class="form-check-input" type="checkbox" id="loteTodosMobile">
+                        <label class="form-check-label" for="loteTodosMobile">Selecionar todos desta página</label>
+                    </div>
                     <div class="table-responsive">
                     <table class="table table-striped table-hover tabela-cards">
                         <thead>
                             <tr>
+                                <th><input class="form-check-input" type="checkbox" id="loteTodos" aria-label="Selecionar todos desta página"></th>
                                 <th class="ordenavel" data-ordenar="numeroProcesso">Número <i class="fas fa-sort"></i></th>
                                 <th class="ordenavel" data-ordenar="dataInicial">Data <i class="fas fa-sort"></i></th>
                                 <th class="ordenavel" data-ordenar="requerente">Requerente <i class="fas fa-sort"></i></th>
@@ -848,6 +878,25 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="btnSalvarNovaSenha">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Receber Processo (não encontrado) -->
+    <div class="modal fade" id="modalReceber" tabindex="-1" aria-labelledby="modalReceberLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalReceberLabel">Processo não encontrado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">O processo <strong id="receberNumeroNaoEncontrado"></strong> ainda não está cadastrado. Deseja cadastrá-lo agora?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnReceberCadastrar">Cadastrar</button>
                 </div>
             </div>
         </div>

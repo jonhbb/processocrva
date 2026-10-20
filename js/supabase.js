@@ -98,19 +98,54 @@ async function atualizarProcesso(processo) {
                 }]);
         }
 
-        if (processoAntigo.numero_processo !== processo.numero_processo) {
+        if (processoAntigo.numero_processo !== processo.numeroProcesso) {
             await supabaseClient
                 .from('historico')
                 .insert([{
                     processo_id: processo.id,
                     data: new Date().toISOString(),
                     tipo: 'numero',
-                    valor: processo.numero_processo,
+                    valor: processo.numeroProcesso,
                     responsavel: 'Sistema'
                 }]);
         }
     } catch (error) {
         throw new Error('Erro ao atualizar processo: ' + error.message);
+    }
+}
+
+// Altera status e/ou localização de vários processos de uma vez
+async function atualizarEmLote(ids, campos) {
+    try {
+        if (!ids || ids.length === 0) return;
+
+        const alteracoes = {};
+        if (campos.status) alteracoes.status = campos.status;
+        if (campos.localizacaoFisica !== undefined) alteracoes.localizacao_fisica = campos.localizacaoFisica;
+        if (Object.keys(alteracoes).length === 0) return;
+
+        const { error } = await supabaseClient
+            .from('processos')
+            .update(alteracoes)
+            .in('id', ids);
+
+        if (error) throw error;
+
+        if (campos.status) {
+            const agora = new Date().toISOString();
+            const { error: erroHistorico } = await supabaseClient
+                .from('historico')
+                .insert(ids.map(id => ({
+                    processo_id: id,
+                    data: agora,
+                    tipo: 'status',
+                    valor: campos.status,
+                    responsavel: 'Sistema'
+                })));
+            if (erroHistorico) throw erroHistorico;
+        }
+    } catch (error) {
+        throw new Error('Erro ao atualizar processos: ' + error.message);
     }
 }
 
@@ -365,6 +400,7 @@ async function verificarTabela(tabela) {
 export {
     adicionarProcesso,
     atualizarProcesso,
+    atualizarEmLote,
     buscarProcessoPorId,
     buscarProcessos,
     buscarProcessoPorNumero,

@@ -6,8 +6,10 @@ Sistema web interno para controlar os processos de vistoria veicular pendentes d
 
 - **Login** de colaboradores, com troca da própria senha (menu lateral) e mensagens de erro na própria tela.
 - **Dashboard** com totais por status (cards clicáveis que abrem a pesquisa já filtrada), lista de **atenção** (pendentes há 30+ dias e pendentes sem localização física), últimos processos e distribuições por status e tipo de veículo.
-- **Cadastro** organizado em Processo / Requerente / Veículo / Situação, com data de hoje por padrão, aviso de **número de processo duplicado** e opção "Cadastrar outro" ou "Ver processo" após salvar.
+- **Cadastro** organizado em Processo / Requerente / Veículo / Situação, com data de hoje por padrão, opção de manter status/localização/tipo do último cadastro, aviso de **número de processo duplicado** e opção "Cadastrar outro" ou "Ver processo" após salvar.
 - **Pesquisa** com busca livre (número, requerente, contato, placa, chassi e motivo), filtros por tipo, status e localização física, busca ao digitar, chips de filtros ativos, ordenação por coluna e destaque em vermelho para pendentes há 30+ dias. No celular a tabela vira cards.
+- **Receber processo**: campo no topo de todas as telas; digite o número e Enter para abrir o processo, ou cadastrá-lo se ainda não existir.
+- **Ações rápidas na pesquisa**: menu ⋮ em cada linha para mover de localização, alterar status ou duplicar; seleção de vários processos para mover/alterar em lote.
 - **Histórico** de alterações de status e de número do processo.
 - **Relatórios** por período, status e veículo, com exportação em PDF/CSV.
 - **Configurações** (somente administrador): backup e restauração dos dados.
