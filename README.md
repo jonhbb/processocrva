@@ -1,81 +1,71 @@
-# Sistema de Controle de Processos Pendentes - CRVA 0371 Tramandaí/RS
+# Controle de Processos Pendentes - CRVA 0371 Tramandaí/RS
 
-Este é um sistema web para controle de processos pendentes do CRVA 0371 de Tramandaí/RS. O sistema permite o cadastro, pesquisa e gerenciamento de processos de vistoria de veículos.
+Sistema web interno para controlar os processos de vistoria veicular pendentes do CRVA 0371: onde cada processo está, em que situação e há quanto tempo está parado.
 
 ## Funcionalidades
 
-- Cadastro de processos com validação de dados
-- Pesquisa de processos com múltiplos filtros
-- Histórico de alterações de status
-- Exportação de dados em CSV
-- Interface responsiva
-- Validação de placa de veículos
-- Controle de status dos processos
+- **Login** de colaboradores, com troca da própria senha (menu lateral) e mensagens de erro na própria tela.
+- **Dashboard** com totais por status (cards clicáveis que abrem a pesquisa já filtrada), lista de **atenção** (pendentes há 30+ dias e pendentes sem localização física), últimos processos e distribuições por status e tipo de veículo.
+- **Cadastro** organizado em Processo / Requerente / Veículo / Situação, com data de hoje por padrão, aviso de **número de processo duplicado** e opção "Cadastrar outro" ou "Ver processo" após salvar.
+- **Pesquisa** com busca livre (número, requerente, contato, placa, chassi e motivo), filtros por tipo, status e localização física, busca ao digitar, chips de filtros ativos, ordenação por coluna e destaque em vermelho para pendentes há 30+ dias. No celular a tabela vira cards.
+- **Histórico** de alterações de status e de número do processo.
+- **Relatórios** por período, status e veículo, com exportação em PDF/CSV.
+- **Configurações** (somente administrador): backup e restauração dos dados.
+- **Credenciais** (somente administrador): cadastro e ativação/inativação de usuários.
+- A página aberta fica na URL (`dashboard.html#pesquisa`), então F5 e o botão Voltar do navegador funcionam.
 
-## Tecnologias Utilizadas
+> A placa é um campo livre, sem máscara, por decisão da coordenação.
 
-- HTML5
-- CSS3
-- JavaScript (ES6+)
-- IndexedDB (SQLite no navegador)
-- Bootstrap 5
-- Font Awesome
+## Tecnologias
 
-## Instalação
+- HTML5, CSS3 e JavaScript (módulos ES), sem etapa de build
+- [Supabase](https://supabase.com) (PostgreSQL) como banco de dados
+- Bootstrap 5.3.0, Font Awesome 6.0.0, jsPDF 2.5.1 e jsPDF-AutoTable 3.5.29
+- Todas as bibliotecas ficam na pasta `vendor/`, **sem dependência de CDN**: o sistema só precisa de internet para falar com o Supabase.
 
-1. Clone este repositório
-2. Abra o arquivo `index.html` em um navegador moderno
-3. O banco de dados será criado automaticamente na primeira execução
+## Como executar
 
-## Estrutura do Projeto
+Basta servir a pasta com qualquer servidor web estático (os módulos ES não funcionam abrindo o arquivo direto por `file://`):
+
+```bash
+python3 -m http.server 8000
+# acesse http://localhost:8000/index.html
+```
+
+Para publicar, copie a pasta para qualquer hospedagem estática (ou servidor com PHP; `index.php` apenas redireciona para o login).
+
+### Banco de dados
+
+As tabelas `processos`, `historico` e `credenciais` ficam no Supabase. O script `credenciais.sql` cria a tabela de credenciais e o usuário `admin` inicial — **troque a senha padrão** no primeiro acesso (menu lateral > Alterar minha senha).
+
+A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
+
+## Estrutura do projeto
 
 ```
 .
-├── index.html          # Página principal
-├── css/
-│   └── style.css      # Estilos da aplicação
+├── index.html          # Login
+├── dashboard.html      # Aplicação (dashboard, cadastro, pesquisa, relatórios, configurações, credenciais)
+├── credenciais.sql     # Tabela de credenciais e usuário inicial
+├── css/style.css       # Estilos da aplicação
 ├── js/
-│   ├── app.js         # Lógica principal
-│   └── database.js    # Funções do banco de dados
-└── README.md          # Este arquivo
+│   ├── app.js          # Lógica principal (cadastro, pesquisa, dashboard, relatórios)
+│   ├── auth.js         # Login, sessão e logout
+│   ├── credenciais.js  # Gestão de credenciais
+│   ├── supabase.js     # Cliente e consultas ao Supabase
+│   └── ui.js           # Toasts, mensagens e escape de HTML
+└── vendor/             # Bootstrap, Font Awesome, jsPDF e Supabase (cópias locais)
 ```
 
-## Uso
+## Atualizando as bibliotecas de `vendor/`
 
-1. **Cadastro de Processos**
-   - Acesse a página de cadastro
-   - Preencha todos os campos obrigatórios
-   - A placa deve seguir o formato ABC1234 ou ABC1A23
-   - Clique em "Salvar Processo"
+As versões estão fixas (ver "Tecnologias"). Para atualizar, baixe a nova versão pelo npm e substitua os arquivos correspondentes; o cliente Supabase é empacotado com `esbuild` em um único arquivo ESM (`vendor/supabase/supabase.js`).
 
-2. **Pesquisa de Processos**
-   - Acesse a página de pesquisa
-   - Utilize os filtros disponíveis
-   - Os resultados serão exibidos em uma tabela
-   - Clique nos botões de ação para gerenciar o processo
+## Pontos de atenção
 
-3. **Exportação de Dados**
-   - Na página de pesquisa, utilize os botões de exportação
-   - Escolha entre CSV ou PDF
-   - O arquivo será baixado automaticamente
-
-## Validações
-
-- Placa de veículo: Formato ABC1234 ou ABC1A23
-- Data: Formato válido de data
-- Campos obrigatórios: Todos os campos são obrigatórios
-- Status: Apenas valores predefinidos (Reprovado, Cancelado, Aprovado)
-
-## Contribuição
-
-Para contribuir com o projeto:
-
-1. Faça um fork do repositório
-2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -m 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
+- As senhas ainda são comparadas em texto puro no navegador, e o controle de administrador é só de interface. Antes de uso mais amplo, migre para o Supabase Auth (ou hash no servidor) e ative RLS nas tabelas.
+- As mensagens de sucesso aparecem como avisos rápidos (toast); erros continuam em modal.
 
 ## Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo LICENSE para mais detalhes. 
+MIT.

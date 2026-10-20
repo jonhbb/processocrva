@@ -4,14 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRVA 0371 - Controle de Processos Pendentes</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <!-- Bibliotecas para PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-    <!-- Biblioteca para gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="vendor/jspdf/jspdf.umd.min.js"></script>
+    <script src="vendor/jspdf/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -34,6 +32,7 @@
                 <p>Tramandaí/RS</p>
                 <div class="user-info">
                     <span id="nomeUsuario"></span>
+                    <a href="#" class="d-block small text-white-50 mb-2" id="btnAlterarSenha"><i class="fas fa-key"></i> Alterar minha senha</a>
                     <button type="button" class="btn btn-sm btn-danger" id="btnLogout">
                         <i class="fas fa-sign-out-alt"></i> Sair
                     </button>
@@ -57,8 +56,18 @@
                     </a>
                 </li>
                 <li>
+                    <a href="#" data-page="relatorios">
+                        <i class="fas fa-chart-bar"></i> Relatórios
+                    </a>
+                </li>
+                <li data-somente-admin class="d-none">
                     <a href="#" data-page="credenciais">
                         <i class="fas fa-user-lock"></i> Credenciais
+                    </a>
+                </li>
+                <li data-somente-admin class="d-none">
+                    <a href="#" data-page="configuracoes">
+                        <i class="fas fa-cog"></i> Configurações
                     </a>
                 </li>
             </ul>
@@ -72,7 +81,7 @@
                 <!-- Cards de Resumo -->
                 <div class="row mb-4">
                     <div class="col-md-2">
-                        <div class="card bg-primary text-white">
+                        <div class="card bg-primary text-white card-clicavel" role="button" tabindex="0" data-filtro-status="" title="Ver na pesquisa">
                             <div class="card-body">
                                 <h5 class="card-title">Total de Processos</h5>
                                 <h2 class="card-text" id="totalProcessos">0</h2>
@@ -80,7 +89,7 @@
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <div class="card bg-success text-white">
+                        <div class="card bg-success text-white card-clicavel" role="button" tabindex="0" data-filtro-status="Aprovado" title="Ver na pesquisa">
                             <div class="card-body">
                                 <h5 class="card-title">Processos Aprovados</h5>
                                 <h2 class="card-text" id="processosAprovados">0</h2>
@@ -88,7 +97,7 @@
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <div class="card bg-danger text-white">
+                        <div class="card bg-danger text-white card-clicavel" role="button" tabindex="0" data-filtro-status="Reprovado" title="Ver na pesquisa">
                             <div class="card-body">
                                 <h5 class="card-title">Processos Reprovados</h5>
                                 <h2 class="card-text" id="processosReprovados">0</h2>
@@ -96,7 +105,7 @@
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <div class="card bg-warning text-white">
+                        <div class="card bg-warning text-white card-clicavel" role="button" tabindex="0" data-filtro-status="Cancelado" title="Ver na pesquisa">
                             <div class="card-body">
                                 <h5 class="card-title">Processos Cancelados</h5>
                                 <h2 class="card-text" id="processosCancelados">0</h2>
@@ -104,7 +113,7 @@
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <div class="card bg-info text-white">
+                        <div class="card bg-info text-white card-clicavel" role="button" tabindex="0" data-filtro-status="Finalizado" title="Ver na pesquisa">
                             <div class="card-body">
                                 <h5 class="card-title">Processos Finalizados</h5>
                                 <h2 class="card-text" id="processosFinalizados">0</h2>
@@ -112,10 +121,36 @@
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <div class="card bg-secondary text-white">
+                        <div class="card bg-secondary text-white card-clicavel" role="button" tabindex="0" data-filtro-status="Pendente" title="Ver na pesquisa">
                             <div class="card-body">
                                 <h5 class="card-title">Processos Pendentes</h5>
                                 <h2 class="card-text" id="processosPendentes">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Atenção -->
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <div class="card border-danger h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 text-danger"><i class="fas fa-exclamation-triangle"></i> Pendentes há 30+ dias <span class="badge bg-danger" id="atencaoParadosTotal">0</span></h5>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="btnVerParados">Ver todos</button>
+                            </div>
+                            <div class="card-body">
+                                <div id="atencaoParados" class="list-group list-group-flush"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-warning h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0"><i class="fas fa-map-marker-alt"></i> Pendentes sem localização física <span class="badge bg-warning text-dark" id="atencaoSemLocalTotal">0</span></h5>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnVerSemLocal">Ver todos</button>
+                            </div>
+                            <div class="card-body">
+                                <div id="atencaoSemLocal" class="list-group list-group-flush"></div>
                             </div>
                         </div>
                     </div>
@@ -130,7 +165,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
-                                    <table class="table table-hover">
+                                    <table class="table table-hover tabela-cards">
                                         <thead>
                                             <tr>
                                                 <th>Número</th>
@@ -177,26 +212,10 @@
                     </div>
                 </div>
 
-                <!-- Opções de Backup -->
-                <div class="row mb-4">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">Backup do Sistema</h5>
-                            </div>
-                            <div class="card-body">
-                                <button type="button" class="btn btn-primary me-2" id="btnBackup">
-                                    <i class="fas fa-download"></i> Realizar Backup
-                                </button>
-                                <button type="button" class="btn btn-warning" id="btnRestaurar">
-                                    <i class="fas fa-upload"></i> Restaurar Backup
-                                </button>
-                                <input type="file" id="inputRestaurar" accept=".json" style="display: none;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            </div>
 
+            <div id="relatorios" class="page">
+                <h2 class="mb-4">Relatórios</h2>
                 <!-- Relatórios Detalhados -->
                 <div class="row mb-4">
                     <div class="col-md-12">
@@ -356,7 +375,7 @@
                                             </div>
                                             <div class="card-body">
                                                 <div class="table-responsive">
-                                                    <table class="table table-striped table-hover" id="tabelaRelatorio">
+                                                    <table class="table table-striped table-hover tabela-cards" id="tabelaRelatorio">
                                                         <thead>
                                                             <tr>
                                                                 <th>Número do Processo</th>
@@ -405,19 +424,50 @@
                 </div>
             </div>
 
+            <div id="configuracoes" class="page">
+                <h2 class="mb-4">Configurações</h2>
+                <!-- Opções de Backup -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Backup do Sistema</h5>
+                            </div>
+                            <div class="card-body">
+                                <button type="button" class="btn btn-primary me-2" id="btnBackup">
+                                    <i class="fas fa-download"></i> Realizar Backup
+                                </button>
+                                <button type="button" class="btn btn-warning" id="btnRestaurar">
+                                    <i class="fas fa-upload"></i> Restaurar Backup
+                                </button>
+                                <input type="file" id="inputRestaurar" accept=".json" style="display: none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="cadastro" class="page">
                 <h2>Cadastro de Processos</h2>
                 <form id="processoForm">
+                    <h5 class="secao-form"><i class="fas fa-file-alt"></i> Processo</h5>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="numeroProcesso" class="form-label">Número do Processo</label>
-                            <input type="text" class="form-control" id="numeroProcesso">
+                            <input type="text" class="form-control" id="numeroProcesso" autocomplete="off">
+                            <div id="avisoDuplicado" class="alert alert-warning py-2 px-3 mt-2 mb-0 d-none" role="alert">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span id="avisoDuplicadoTexto"></span>
+                                <button type="button" class="btn btn-sm btn-warning ms-2" id="btnAbrirDuplicado">Abrir</button>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="dataInicial" class="form-label">Data Inicial</label>
                             <input type="date" class="form-control" id="dataInicial">
                         </div>
                     </div>
+
+                    <h5 class="secao-form"><i class="fas fa-user"></i> Requerente</h5>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="requerente" class="form-label">Requerente</label>
@@ -428,12 +478,10 @@
                             <input type="text" class="form-control" id="contato">
                         </div>
                     </div>
+
+                    <h5 class="secao-form"><i class="fas fa-car"></i> Veículo</h5>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="chassi" class="form-label">Chassi</label>
-                            <input type="text" class="form-control" id="chassi">
-                        </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="tipoVeiculo" class="form-label">Tipo de Veículo</label>
                             <select class="form-select" id="tipoVeiculo">
                                 <option value="">Selecione...</option>
@@ -446,12 +494,18 @@
                                 <option value="Ônibus">Ônibus</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label for="placa" class="form-label">Placa</label>
                             <input type="text" class="form-control" id="placa">
                         </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="chassi" class="form-label">Chassi</label>
+                            <input type="text" class="form-control" id="chassi">
+                        </div>
+                    </div>
+
+                    <h5 class="secao-form"><i class="fas fa-clipboard-check"></i> Situação</h5>
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="status" class="form-label">Status</label>
                             <select class="form-select" id="status" required>
@@ -463,21 +517,22 @@
                                 <option value="Finalizado">Finalizado</option>
                             </select>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="localizacaoFisica" class="form-label">Localização Física do Processo</label>
+                            <select class="form-select" id="localizacaoFisica">
+                                <option value="">Selecione...</option>
+                                <option value="Pendentes">Pendentes</option>
+                                <option value="Perícia">Perícia</option>
+                                <option value="Arquivo Morto">Arquivo Morto</option>
+                                <option value="Vistoria Avulsa">Vistoria Avulsa</option>
+                                <option value="Processo finalizado">Processo finalizado</option>
+                            </select>
+                            <div class="form-text text-warning d-none" id="localizacaoHint"></div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="motivoPendencia" class="form-label">Motivo da Pendência</label>
                         <textarea class="form-control" id="motivoPendencia" rows="3" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="localizacaoFisica" class="form-label">Localização Física do Processo</label>
-                        <select class="form-select" id="localizacaoFisica">
-                            <option value="">Selecione...</option>
-                            <option value="Pendentes">Pendentes</option>
-                            <option value="Perícia">Perícia</option>
-                            <option value="Arquivo Morto">Arquivo Morto</option>
-                            <option value="Vistoria Avulsa">Vistoria Avulsa</option>
-                            <option value="Processo finalizado">Processo finalizado</option>
-                        </select>
                     </div>
                     <button type="submit" class="btn btn-primary">Salvar Processo</button>
                 </form>
@@ -485,71 +540,111 @@
 
             <div id="pesquisa" class="page">
                 <h2>Pesquisa de Processos</h2>
-                <div class="card mb-4">
+                <div class="card mb-3">
                     <div class="card-body">
                         <form id="pesquisaForm">
                             <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="pesquisaBusca" class="form-label">Busca livre</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        <input type="search" class="form-control" id="pesquisaBusca" placeholder="Nome, chassi, placa, número..." autocomplete="off">
+                                    </div>
+                                </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="pesquisaNumero" class="form-label">Número do Processo</label>
-                                    <input type="text" class="form-control" id="pesquisaNumero">
+                                    <input type="text" class="form-control" id="pesquisaNumero" autocomplete="off">
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label for="pesquisaPlaca" class="form-label">Placa</label>
-                                    <input type="text" class="form-control" id="pesquisaPlaca">
+                                    <input type="text" class="form-control" id="pesquisaPlaca" autocomplete="off">
                                 </div>
-                                <div class="col-md-3 mb-3">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
                                     <label for="pesquisaTipoVeiculo" class="form-label">Tipo de Veículo</label>
                                     <select class="form-select" id="pesquisaTipoVeiculo">
                                         <option value="">Todos</option>
                                         <option value="Automóvel">Automóvel</option>
-                                        <option value="Motocicleta">Motocicleta</option>
-                                        <option value="Caminhonete">Caminhonete</option>
-                                        <option value="Caminhão">Caminhão</option>
-                                        <option value="Reboque">Reboque</option>
-                                        <option value="Trailer">Trailer</option>
-                                        <option value="Ônibus">Ônibus</option>
+                                <option value="Motocicleta">Motocicleta</option>
+                                <option value="Caminhonete">Caminhonete</option>
+                                <option value="Caminhão">Caminhão</option>
+                                <option value="Reboque">Reboque</option>
+                                <option value="Trailer">Trailer</option>
+                                <option value="Ônibus">Ônibus</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3 mb-3">
+                                <div class="col-md-4 mb-3">
                                     <label for="pesquisaStatus" class="form-label">Status</label>
                                     <select class="form-select" id="pesquisaStatus">
                                         <option value="">Todos</option>
                                         <option value="Pendente">Pendente</option>
-                                        <option value="Reprovado">Reprovado</option>
-                                        <option value="Cancelado">Cancelado</option>
-                                        <option value="Aprovado">Aprovado</option>
-                                        <option value="Finalizado">Finalizado</option>
+                                <option value="Aprovado">Aprovado</option>
+                                <option value="Reprovado">Reprovado</option>
+                                <option value="Cancelado">Cancelado</option>
+                                <option value="Finalizado">Finalizado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="pesquisaLocalizacao" class="form-label">Localização Física</label>
+                                    <select class="form-select" id="pesquisaLocalizacao">
+                                        <option value="">Todas</option>
+                                        <option value="Pendentes">Pendentes</option>
+                                <option value="Perícia">Perícia</option>
+                                <option value="Arquivo Morto">Arquivo Morto</option>
+                                <option value="Vistoria Avulsa">Vistoria Avulsa</option>
+                                <option value="Processo finalizado">Processo finalizado</option>
                                     </select>
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary">Pesquisar</button>
+                            <button type="button" class="btn btn-outline-secondary" id="btnLimparPesquisa"><i class="fas fa-times"></i> Limpar filtros</button>
                             <button type="button" class="btn btn-secondary" id="exportarCSV">Exportar CSV</button>
                             <button type="button" class="btn btn-secondary" id="exportarPDF">Exportar PDF</button>
                         </form>
                     </div>
                 </div>
+                <div id="pesquisaChips" class="d-flex flex-wrap gap-2 mb-3"></div>
+                <div class="d-md-none mb-3">
+                    <label for="pesquisaOrdenarMobile" class="form-label">Ordenar por</label>
+                    <select class="form-select" id="pesquisaOrdenarMobile">
+                        <option value="dataInicial:desc">Mais recentes</option>
+                        <option value="dataInicial:asc">Mais antigos</option>
+                        <option value="status:asc">Status (A-Z)</option>
+                        <option value="requerente:asc">Requerente (A-Z)</option>
+                        <option value="numeroProcesso:asc">Número do processo</option>
+                        <option value="localizacaoFisica:asc">Localização física</option>
+                    </select>
+                </div>
                 <div id="resultadosPesquisa">
-                    <table class="table table-striped">
+                    <div class="table-responsive">
+                    <table class="table table-striped table-hover tabela-cards">
                         <thead>
                             <tr>
-                                <th>Número</th>
-                                <th>Data</th>
-                                <th>Requerente</th>
+                                <th class="ordenavel" data-ordenar="numeroProcesso">Número <i class="fas fa-sort"></i></th>
+                                <th class="ordenavel" data-ordenar="dataInicial">Data <i class="fas fa-sort"></i></th>
+                                <th class="ordenavel" data-ordenar="requerente">Requerente <i class="fas fa-sort"></i></th>
                                 <th>Contato</th>
                                 <th>Veículo</th>
                                 <th>Placa</th>
-                                <th>Status</th>
+                                <th class="ordenavel" data-ordenar="status">Status <i class="fas fa-sort"></i></th>
                                 <th>Motivo da Pendência</th>
-                                <th>Localização Física</th>
+                                <th class="ordenavel" data-ordenar="localizacaoFisica">Localização Física <i class="fas fa-sort"></i></th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody id="tabelaResultados">
                         </tbody>
                     </table>
+                    </div>
+                    <div id="pesquisaVazio" class="text-center text-muted py-4 d-none">
+                        <i class="fas fa-folder-open fa-2x mb-2"></i>
+                        <p class="mb-0">Nenhum processo encontrado para os filtros informados.</p>
+                    </div>
                     <div id="pesquisaPaginacao" class="d-none flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top">
                         <div class="text-muted small">
                             Total: <span id="pesquisaTotalRegistros">0</span> registro(s)
+                            <span class="ms-2"><span class="badge bg-danger">Pendente há 30+ dias</span> destacado em vermelho</span>
                         </div>
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-sm btn-outline-primary" id="btnPesquisaAnterior" disabled>
@@ -595,7 +690,7 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped">
+                            <table class="table table-striped tabela-cards">
                                 <thead>
                                     <tr>
                                         <th>Nome do Colaborador</th>
@@ -703,6 +798,61 @@
         </div>
     </div>
 
+    <!-- Modal pós-cadastro -->
+    <div class="modal fade" id="modalCadastroSucesso" tabindex="-1" aria-labelledby="modalCadastroSucessoLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalCadastroSucessoLabel">Processo cadastrado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-success mb-0" role="alert">
+                        <i class="fas fa-check-circle"></i> Processo <strong id="cadastroSucessoNumero"></strong> cadastrado com sucesso!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnVerProcessoCadastrado">Ver processo</button>
+                    <button type="button" class="btn btn-primary" id="btnCadastrarOutro">Cadastrar outro</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Alterar Senha -->
+    <div class="modal fade" id="modalAlterarSenha" tabindex="-1" aria-labelledby="modalAlterarSenhaLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAlterarSenhaLabel">Alterar minha senha</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="alterarSenhaErro" class="alert alert-danger d-none" role="alert"></div>
+                    <form id="formAlterarSenha" onsubmit="return false;">
+                        <div class="mb-3">
+                            <label for="senhaAtual" class="form-label">Senha atual</label>
+                            <input type="password" class="form-control" id="senhaAtual" autocomplete="current-password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="senhaNova" class="form-label">Nova senha</label>
+                            <input type="password" class="form-control" id="senhaNova" autocomplete="new-password">
+                            <div class="form-text">Mínimo de 6 caracteres.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="senhaConfirmacao" class="form-label">Confirmar nova senha</label>
+                            <input type="password" class="form-control" id="senhaConfirmacao" autocomplete="new-password">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarNovaSenha">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Mensagem do Sistema -->
     <div class="modal fade" id="modalMensagem" tabindex="-1" aria-labelledby="modalMensagemLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -803,6 +953,7 @@
                                 <option value="Vistoria Avulsa">Vistoria Avulsa</option>
                                 <option value="Processo finalizado">Processo finalizado</option>
                             </select>
+                            <div class="form-text text-warning d-none" id="editarLocalizacaoHint"></div>
                         </div>
                     </form>
                 </div>
@@ -814,7 +965,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { verificarSessao, fazerLogout } from './js/auth.js';
 
@@ -829,6 +980,12 @@
             // Mostra o nome do usuário
             const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
             document.getElementById('nomeUsuario').textContent = usuarioLogado.nome;
+
+            // Credenciais e Configurações (backup) só para o administrador.
+            // Obs.: controle apenas de interface; a proteção real depende das regras do banco.
+            if (usuarioLogado.usuario === 'admin') {
+                document.querySelectorAll('[data-somente-admin]').forEach(li => li.classList.remove('d-none'));
+            }
         }
 
         // Verifica autenticação ao carregar a página
@@ -902,20 +1059,10 @@
     <script type="module" src="js/app.js"></script>
     <script type="module">
         import { criarCredencial, verificarUsuarioExistente, listarCredenciais, atualizarCredencial, testarConexaoCredenciais } from './js/credenciais.js';
+        import { verificarLogin } from './js/auth.js';
+        import { esc, mostrarMensagem } from './js/ui.js';
 
-        // Função para mostrar mensagem
-        window.mostrarMensagem = function(mensagem, tipo = 'info') {
-            const modalMensagem = document.getElementById('modalMensagem');
-            const modalMensagemTexto = document.getElementById('modalMensagemTexto');
-            const modalMensagemTitulo = document.getElementById('modalMensagemTitulo');
-
-            modalMensagemTexto.className = `alert alert-${tipo}`;
-            modalMensagemTitulo.textContent = tipo === 'danger' ? 'Erro' : 'Sucesso';
-            modalMensagemTexto.textContent = mensagem;
-
-            const modal = new bootstrap.Modal(modalMensagem);
-            modal.show();
-        };
+        window.mostrarMensagem = mostrarMensagem;
 
         // Função para testar conexão
         async function testarConexao() {
@@ -973,17 +1120,17 @@
                 data.forEach(credencial => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${credencial.nome_colaborador}</td>
-                        <td>${credencial.usuario}</td>
-                        <td>${new Date(credencial.data_criacao).toLocaleDateString()}</td>
-                        <td>
+                        <td data-label="Colaborador">${esc(credencial.nome_colaborador)}</td>
+                        <td data-label="Usuário">${esc(credencial.usuario)}</td>
+                        <td data-label="Criação">${esc(new Date(credencial.data_criacao).toLocaleDateString('pt-BR'))}</td>
+                        <td data-label="Status">
                             <span class="badge ${credencial.status === 'ativo' ? 'bg-success' : 'bg-danger'}">
-                                ${credencial.status}
+                                ${esc(credencial.status)}
                             </span>
                         </td>
-                        <td>
+                        <td data-label="Ações">
                             <button class="btn btn-sm ${credencial.status === 'ativo' ? 'btn-danger' : 'btn-success'}"
-                                    onclick="alterarStatusCredencial(${credencial.id}, '${credencial.status}')">
+                                    onclick="alterarStatusCredencial(${Number(credencial.id)}, '${credencial.status === 'ativo' ? 'ativo' : 'inativo'}')">
                                 ${credencial.status === 'ativo' ? 'Inativar' : 'Ativar'}
                             </button>
                         </td>
@@ -1006,8 +1153,47 @@
             }
         };
 
-        // Carregar credenciais ao abrir a página
-        document.addEventListener('DOMContentLoaded', carregarCredenciais);
+        // Carregar credenciais ao abrir a página (somente administrador)
+        document.addEventListener('DOMContentLoaded', () => {
+            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado') || 'null');
+            if (logado && logado.usuario === 'admin') carregarCredenciais();
+        });
+
+        // Alterar a própria senha
+        document.getElementById('btnAlterarSenha').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('formAlterarSenha').reset();
+            document.getElementById('alterarSenhaErro').classList.add('d-none');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAlterarSenha')).show();
+        });
+
+        document.getElementById('btnSalvarNovaSenha').addEventListener('click', async () => {
+            const erro = document.getElementById('alterarSenhaErro');
+            const mostrarErro = (msg) => { erro.textContent = msg; erro.classList.remove('d-none'); };
+            erro.classList.add('d-none');
+
+            const atual = document.getElementById('senhaAtual').value;
+            const nova = document.getElementById('senhaNova').value;
+            const confirmacao = document.getElementById('senhaConfirmacao').value;
+            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+
+            if (nova.length < 6) return mostrarErro('A nova senha deve ter pelo menos 6 caracteres.');
+            if (nova !== confirmacao) return mostrarErro('A confirmação não confere com a nova senha.');
+            if (nova === atual) return mostrarErro('A nova senha deve ser diferente da atual.');
+
+            try {
+                const valido = await verificarLogin(logado.usuario, atual);
+                if (!valido) return mostrarErro('Senha atual incorreta.');
+
+                const { success } = await atualizarCredencial(logado.id, { senha: nova });
+                if (!success) return mostrarErro('Não foi possível salvar a nova senha. Tente novamente.');
+
+                bootstrap.Modal.getInstance(document.getElementById('modalAlterarSenha')).hide();
+                mostrarMensagem('Senha alterada com sucesso!', 'success');
+            } catch (e) {
+                mostrarErro('Sem conexão com o servidor. Tente novamente.');
+            }
+        });
     </script>
 </body>
 </html> 
