@@ -7,9 +7,10 @@
     <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
+    <script src="js/aparencia.js"></script>
     <style>
         body {
-            background-color: #f8f9fa;
+            background-color: var(--bs-tertiary-bg);
             padding-bottom: 52px;
         }
         .login-container {
@@ -52,8 +53,8 @@
             right: 0;
             padding: 12px 16px;
             text-align: center;
-            background: #f8f9fa;
-            border-top: 1px solid #dee2e6;
+            background: var(--bs-tertiary-bg);
+            border-top: 1px solid var(--bs-border-color);
             font-size: 0.875rem;
             color: #6c757d;
         }
@@ -95,6 +96,11 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="manterConectado">
+                            <label class="form-check-label" for="manterConectado">Manter-me conectado neste computador</label>
+                            <div class="form-text">Use só em computador de uso pessoal. A sessão dura 12 horas.</div>
+                        </div>
                         <button type="submit" class="btn btn-primary btn-login">
                             <i class="fas fa-sign-in-alt"></i> Entrar
                         </button>
@@ -114,6 +120,7 @@
     <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { verificarLogin } from './js/auth.js';
+        import { salvarSessao, obterUsuarioLogado } from './js/sessao.js';
         import { testarConexao, verificarTabela } from './js/supabase.js';
 
         // Aviso dentro da própria tela de login
@@ -125,6 +132,15 @@
 
         function esconderAviso() {
             document.getElementById('loginAviso').className = 'alert d-none';
+        }
+
+        // Já conectado neste computador: vai direto ao sistema
+        if (obterUsuarioLogado()) {
+            window.location.replace('dashboard.html');
+        }
+
+        if (new URLSearchParams(location.search).get('motivo') === 'expirada') {
+            mostrarAviso('Sua sessão expirou por inatividade. Entre novamente para continuar.', 'warning');
         }
 
         // Testar conexão ao carregar a página
@@ -194,7 +210,7 @@
                 const usuarioEncontrado = await verificarLogin(usuario, senha);
 
                 if (usuarioEncontrado) {
-                    sessionStorage.setItem('usuarioLogado', JSON.stringify(usuarioEncontrado));
+                    salvarSessao(usuarioEncontrado, document.getElementById('manterConectado').checked);
                     window.location.href = 'dashboard.html';
                     return;
                 }

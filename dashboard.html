@@ -7,11 +7,13 @@
     <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
     <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
+    <script src="js/aparencia.js"></script>
     <!-- Bibliotecas para PDF -->
     <script src="vendor/jspdf/jspdf.umd.min.js"></script>
     <script src="vendor/jspdf/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
+    <a href="#" class="visually-hidden-focusable pular-conteudo" id="pularConteudo">Pular para o conteúdo</a>
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner"></div>
@@ -19,7 +21,7 @@
     </div>
 
     <!-- Sidebar Toggle (mobile) -->
-    <button class="sidebar-toggle" id="sidebarToggle">
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Abrir menu" title="Abrir menu">
         <i class="fas fa-bars"></i>
     </button>
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -28,6 +30,7 @@
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-header">
+                <button type="button" class="btn btn-sm btn-outline-light sidebar-colapsar" id="btnRecolherMenu" aria-label="Recolher menu lateral" title="Recolher menu lateral"><i class="fas fa-angles-left"></i></button>
                 <h3>CRVA 0371</h3>
                 <p>Tramandaí/RS</p>
                 <div class="user-info">
@@ -41,40 +44,54 @@
 
             <ul class="list-unstyled components">
                 <li class="active">
-                    <a href="#" data-page="home">
-                        <i class="fas fa-home"></i> Página Inicial
+                    <a href="#" data-page="home" title="Página Inicial">
+                        <i class="fas fa-home"></i> <span class="menu-texto">Página Inicial</span>
                     </a>
                 </li>
                 <li>
-                    <a href="#" data-page="cadastro">
-                        <i class="fas fa-plus-circle"></i> Cadastro de Processos
+                    <a href="#" data-page="cadastro" title="Cadastro de Processos">
+                        <i class="fas fa-plus-circle"></i> <span class="menu-texto">Cadastro de Processos</span>
                     </a>
                 </li>
                 <li>
-                    <a href="#" data-page="pesquisa">
-                        <i class="fas fa-search"></i> Pesquisa de Processos
+                    <a href="#" data-page="pesquisa" title="Pesquisa de Processos">
+                        <i class="fas fa-search"></i> <span class="menu-texto">Pesquisa de Processos</span>
                     </a>
                 </li>
                 <li>
-                    <a href="#" data-page="relatorios">
-                        <i class="fas fa-chart-bar"></i> Relatórios
+                    <a href="#" data-page="relatorios" title="Relatórios">
+                        <i class="fas fa-chart-bar"></i> <span class="menu-texto">Relatórios</span>
                     </a>
                 </li>
                 <li data-somente-admin class="d-none">
-                    <a href="#" data-page="credenciais">
-                        <i class="fas fa-user-lock"></i> Credenciais
+                    <a href="#" data-page="credenciais" title="Credenciais">
+                        <i class="fas fa-user-lock"></i> <span class="menu-texto">Credenciais</span>
                     </a>
                 </li>
                 <li data-somente-admin class="d-none">
-                    <a href="#" data-page="configuracoes">
-                        <i class="fas fa-cog"></i> Configurações
+                    <a href="#" data-page="configuracoes" title="Configurações">
+                        <i class="fas fa-cog"></i> <span class="menu-texto">Configurações</span>
                     </a>
                 </li>
             </ul>
+
+            <div class="sidebar-aparencia" role="group" aria-label="Aparência e ajuda">
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnTema" aria-label="Usar tema escuro" title="Usar tema escuro"><i class="fas fa-moon"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnFonteMenos" aria-label="Diminuir letras" title="Diminuir letras">A-</button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnFonteMais" aria-label="Aumentar letras" title="Aumentar letras">A+</button>
+                <button type="button" class="btn btn-sm btn-outline-light" id="btnAtalhos" aria-label="Atalhos de teclado" title="Atalhos de teclado (?)"><i class="fas fa-keyboard"></i></button>
+            </div>
         </nav>
 
         <!-- Page Content -->
-        <div id="content">
+        <div id="content" tabindex="-1">
+            <!-- Receber processo (atalho global) -->
+            <form id="formReceber" class="receber-barra input-group mb-4" autocomplete="off">
+                <span class="input-group-text"><i class="fas fa-inbox"></i></span>
+                <input type="text" class="form-control" id="receberNumero" placeholder="Receber processo (número + Enter)" aria-label="Número do processo a receber">
+                <button type="submit" class="btn btn-success">Receber</button>
+            </form>
+
             <div id="home" class="page active">
                 <h2 class="mb-4">Dashboard - Controle de Processos</h2>
                 
@@ -135,7 +152,7 @@
                     <div class="col-md-6 mb-3 mb-md-0">
                         <div class="card border-danger h-100">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="card-title mb-0 text-danger"><i class="fas fa-exclamation-triangle"></i> Pendentes há 30+ dias <span class="badge bg-danger" id="atencaoParadosTotal">0</span></h5>
+                                <h5 class="card-title mb-0 text-danger"><i class="fas fa-exclamation-triangle"></i> Pendentes há <span class="dias-atencao">30</span>+ dias <span class="badge bg-danger" id="atencaoParadosTotal">0</span></h5>
                                 <button type="button" class="btn btn-sm btn-outline-danger" id="btnVerParados">Ver todos</button>
                             </div>
                             <div class="card-body">
@@ -151,6 +168,39 @@
                             </div>
                             <div class="card-body">
                                 <div id="atencaoSemLocal" class="list-group list-group-flush"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onde estão os processos -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0"><i class="fas fa-map-marker-alt"></i> Onde estão os processos</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-2" id="resumoLocalizacao"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Entradas x Finalizados -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0"><i class="fas fa-chart-bar"></i> Entradas × Finalizados por mês</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="grafico-legenda mb-2">
+                                    <span><i class="grafico-cor grafico-cor-entradas"></i> Entradas</span>
+                                    <span><i class="grafico-cor grafico-cor-finalizados"></i> Finalizados</span>
+                                </div>
+                                <div id="graficoMensal"><div class="text-muted small">Carregando...</div></div>
+                                <div class="form-text">Entradas pela data inicial do processo; finalizados pela data em que o status passou a Finalizado no histórico.</div>
                             </div>
                         </div>
                     </div>
@@ -426,6 +476,24 @@
 
             <div id="configuracoes" class="page">
                 <h2 class="mb-4">Configurações</h2>
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Prazo de atenção</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted">Processos <strong>Pendentes</strong> há esse número de dias (ou mais) aparecem em vermelho na pesquisa e na lista de atenção do dashboard.</p>
+                                <div class="input-group" style="max-width: 320px;">
+                                    <input type="number" class="form-control" id="configDiasAtencao" min="1" max="365" value="30" aria-label="Prazo de atenção em dias">
+                                    <span class="input-group-text">dias</span>
+                                    <button type="button" class="btn btn-primary" id="btnSalvarConfig">Salvar</button>
+                                </div>
+                                <div id="configAviso" class="form-text text-warning d-none mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <!-- Opções de Backup -->
                 <div class="row mb-4">
                     <div class="col-md-12">
@@ -449,6 +517,11 @@
 
             <div id="cadastro" class="page">
                 <h2>Cadastro de Processos</h2>
+                <datalist id="listaRequerentes"></datalist>
+                <div id="rascunhoAviso" class="alert alert-info d-none align-items-center justify-content-between gap-2" role="status">
+                    <span><i class="fas fa-save"></i> <span id="rascunhoAvisoTexto"></span></span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnDescartarRascunho">Descartar rascunho</button>
+                </div>
                 <form id="processoForm">
                     <h5 class="secao-form"><i class="fas fa-file-alt"></i> Processo</h5>
                     <div class="row">
@@ -471,7 +544,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="requerente" class="form-label">Requerente</label>
-                            <input type="text" class="form-control" id="requerente">
+                            <input type="text" class="form-control" id="requerente" list="listaRequerentes" autocomplete="off">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="contato" class="form-label">Contato</label>
@@ -507,7 +580,7 @@
                     <h5 class="secao-form"><i class="fas fa-clipboard-check"></i> Situação</h5>
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="status" class="form-label">Status</label>
+                            <label for="status" class="form-label obrigatorio">Status</label>
                             <select class="form-select" id="status" required>
                                 <option value="">Selecione...</option>
                                 <option value="Pendente">Pendente</option>
@@ -532,9 +605,16 @@
                     </div>
                     <div class="mb-3">
                         <label for="motivoPendencia" class="form-label">Motivo da Pendência</label>
-                        <textarea class="form-control" id="motivoPendencia" rows="3" required></textarea>
+                        <textarea class="form-control" id="motivoPendencia" rows="3"></textarea>
+                        <div id="motivosFrequentes" class="d-flex flex-wrap gap-1 mt-2" aria-label="Motivos frequentes"></div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Salvar Processo</button>
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <button type="submit" class="btn btn-primary">Salvar Processo</button>
+                        <div class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" id="manterDados">
+                            <label class="form-check-label" for="manterDados">Manter status, localização e tipo de veículo do último</label>
+                        </div>
+                    </div>
                 </form>
             </div>
 
@@ -599,11 +679,16 @@
                             </div>
                             <button type="submit" class="btn btn-primary">Pesquisar</button>
                             <button type="button" class="btn btn-outline-secondary" id="btnLimparPesquisa"><i class="fas fa-times"></i> Limpar filtros</button>
-                            <button type="button" class="btn btn-secondary" id="exportarCSV">Exportar CSV</button>
-                            <button type="button" class="btn btn-secondary" id="exportarPDF">Exportar PDF</button>
+                            <button type="button" class="btn btn-secondary" id="btnExportar"><i class="fas fa-file-export"></i> <span id="btnExportarTexto">Exportar</span></button>
                         </form>
                     </div>
                 </div>
+                <div id="pesquisaVisoes" class="d-flex flex-wrap align-items-center gap-2 mb-2" aria-label="Visões da pesquisa"></div>
+                <form id="visaoNovaForm" class="input-group input-group-sm mb-2 d-none" style="max-width: 420px;">
+                    <input type="text" class="form-control" id="visaoNovaNome" maxlength="40" placeholder="Nome da visão (ex.: Parados na perícia)" aria-label="Nome da visão">
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                    <button type="button" class="btn btn-outline-secondary" id="visaoNovaCancelar">Cancelar</button>
+                </form>
                 <div id="pesquisaChips" class="d-flex flex-wrap gap-2 mb-3"></div>
                 <div class="d-md-none mb-3">
                     <label for="pesquisaOrdenarMobile" class="form-label">Ordenar por</label>
@@ -617,10 +702,27 @@
                     </select>
                 </div>
                 <div id="resultadosPesquisa">
+                    <div id="pesquisaLote" class="alert alert-primary d-none flex-wrap align-items-center gap-2 py-2" role="region" aria-label="Ações em lote">
+                        <span><strong id="loteContagem">0</strong> selecionado(s)</span>
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"><i class="fas fa-map-marker-alt"></i> Mover para</button>
+                            <ul class="dropdown-menu" id="loteMenuLocal"></ul>
+                        </div>
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown"><i class="fas fa-exchange-alt"></i> Alterar status</button>
+                            <ul class="dropdown-menu" id="loteMenuStatus"></ul>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" id="loteLimpar">Limpar seleção</button>
+                    </div>
+                    <div class="form-check d-md-none mb-2">
+                        <input class="form-check-input" type="checkbox" id="loteTodosMobile">
+                        <label class="form-check-label" for="loteTodosMobile">Selecionar todos desta página</label>
+                    </div>
                     <div class="table-responsive">
                     <table class="table table-striped table-hover tabela-cards">
                         <thead>
                             <tr>
+                                <th><input class="form-check-input" type="checkbox" id="loteTodos" aria-label="Selecionar todos desta página"></th>
                                 <th class="ordenavel" data-ordenar="numeroProcesso">Número <i class="fas fa-sort"></i></th>
                                 <th class="ordenavel" data-ordenar="dataInicial">Data <i class="fas fa-sort"></i></th>
                                 <th class="ordenavel" data-ordenar="requerente">Requerente <i class="fas fa-sort"></i></th>
@@ -644,7 +746,7 @@
                     <div id="pesquisaPaginacao" class="d-none flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top">
                         <div class="text-muted small">
                             Total: <span id="pesquisaTotalRegistros">0</span> registro(s)
-                            <span class="ms-2"><span class="badge bg-danger">Pendente há 30+ dias</span> destacado em vermelho</span>
+                            <span class="ms-2"><span class="badge bg-danger">Pendente há <span class="dias-atencao">30</span>+ dias</span> destacado em vermelho</span>
                         </div>
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-sm btn-outline-primary" id="btnPesquisaAnterior" disabled>
@@ -777,22 +879,33 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Data/Hora</th>
-                                    <th>Status</th>
-                                    <th>Responsável</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabelaHistorico">
-                            </tbody>
-                        </table>
-                    </div>
+                    <div id="historicoResumo" class="small text-muted mb-3"></div>
+                    <ol id="historicoTimeline" class="timeline list-unstyled mb-0"></ol>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Exportar -->
+    <div class="modal fade" id="modalExportar" tabindex="-1" aria-labelledby="modalExportarLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalExportarLabel">Exportar resultados</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">Serão exportados os <strong id="exportarTotal">0</strong> processo(s) da pesquisa atual, na ordem em que aparecem na tela.</p>
+                    <div class="fw-semibold mb-2">Colunas</div>
+                    <div class="row" id="exportarColunas"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-outline-primary" id="btnExportarCsvPesquisa"><i class="fas fa-file-csv"></i> Baixar CSV</button>
+                    <button type="button" class="btn btn-primary" id="btnExportarPdfPesquisa"><i class="fas fa-file-pdf"></i> Baixar PDF</button>
                 </div>
             </div>
         </div>
@@ -853,6 +966,25 @@
         </div>
     </div>
 
+    <!-- Modal Receber Processo (não encontrado) -->
+    <div class="modal fade" id="modalReceber" tabindex="-1" aria-labelledby="modalReceberLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalReceberLabel">Processo não encontrado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">O processo <strong id="receberNumeroNaoEncontrado"></strong> ainda não está cadastrado. Deseja cadastrá-lo agora?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnReceberCadastrar">Cadastrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Mensagem do Sistema -->
     <div class="modal fade" id="modalMensagem" tabindex="-1" aria-labelledby="modalMensagemLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -866,6 +998,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary d-none" id="modalMensagemRetry">Tentar novamente</button>
                     <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
                 </div>
             </div>
@@ -881,6 +1014,13 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
+                    <div id="editarDescartarBar" class="alert alert-warning d-none align-items-center justify-content-between flex-wrap gap-2" role="alert">
+                        <span><i class="fas fa-exclamation-triangle"></i> Há alterações não salvas.</span>
+                        <span>
+                            <button type="button" class="btn btn-sm btn-secondary" id="btnContinuarEditando">Continuar editando</button>
+                            <button type="button" class="btn btn-sm btn-danger" id="btnDescartarEdicao">Descartar alterações</button>
+                        </span>
+                    </div>
                     <form id="formEditar">
                         <input type="hidden" id="editarProcessoId">
                         <div class="row">
@@ -896,7 +1036,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="editarRequerente" class="form-label">Requerente</label>
-                                <input type="text" class="form-control" id="editarRequerente" required>
+                                <input type="text" class="form-control" id="editarRequerente" list="listaRequerentes" autocomplete="off" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="editarContato" class="form-label">Contato</label>
@@ -928,7 +1068,7 @@
                                 <input type="text" class="form-control" id="editarPlaca">
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="editarStatus" class="form-label">Status</label>
+                                <label for="editarStatus" class="form-label obrigatorio">Status</label>
                                 <select class="form-select" id="editarStatus" required>
                                     <option value="">Selecione...</option>
                                     <option value="Pendente">Pendente</option>
@@ -941,7 +1081,8 @@
                         </div>
                         <div class="mb-3">
                             <label for="editarMotivoPendencia" class="form-label">Motivo da Pendência</label>
-                            <textarea class="form-control" id="editarMotivoPendencia" rows="3" required></textarea>
+                            <textarea class="form-control" id="editarMotivoPendencia" rows="3"></textarea>
+                            <div id="editarMotivosFrequentes" class="d-flex flex-wrap gap-1 mt-2" aria-label="Motivos frequentes"></div>
                         </div>
                         <div class="mb-3">
                             <label for="editarLocalizacaoFisica" class="form-label">Localização Física do Processo</label>
@@ -965,9 +1106,71 @@
         </div>
     </div>
 
+    <!-- Modal de atalhos de teclado -->
+    <div class="modal fade" id="modalAtalhos" tabindex="-1" aria-labelledby="modalAtalhosTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAtalhosTitulo"><i class="fas fa-keyboard"></i> Atalhos de teclado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td><kbd>/</kbd></td><td>Pesquisar (vai para a busca livre)</td></tr>
+                            <tr><td><kbd>N</kbd></td><td>Novo cadastro</td></tr>
+                            <tr><td><kbd>R</kbd></td><td>Receber processo (campo do topo)</td></tr>
+                            <tr><td><kbd>?</kbd></td><td>Mostrar esta lista</td></tr>
+                            <tr><td><kbd>Esc</kbd></td><td>Fechar janelas</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="form-text mb-0 mt-2">Os atalhos não funcionam enquanto você digita em um campo.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de sessão prestes a expirar -->
+    <div class="modal fade" id="modalSessao" tabindex="-1" aria-labelledby="modalSessaoTitulo" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalSessaoTitulo"><i class="fas fa-clock"></i> Sessão prestes a expirar</h5>
+                </div>
+                <div class="modal-body">
+                    Por inatividade, sua sessão será encerrada em <strong id="sessaoSegundos">120</strong> segundos. Seu rascunho de cadastro fica guardado.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btnSessaoSair">Sair agora</button>
+                    <button type="button" class="btn btn-primary" id="btnSessaoContinuar">Continuar conectado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação (fica acima dos demais) -->
+    <div class="modal fade" id="modalConfirmar" tabindex="-1" aria-labelledby="modalConfirmarTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalConfirmarTitulo">Confirmar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="modalConfirmarTexto"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnConfirmarOk">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { verificarSessao, fazerLogout } from './js/auth.js';
+        import { iniciarAtalhos } from './js/atalhos.js';
+        import { obterUsuarioLogado, encerrarSessao, iniciarMonitorInatividade } from './js/sessao.js';
+        import { iniciarMonitorConexao } from './js/ui.js';
 
         // Função para verificar autenticação
         function verificarAutenticacao() {
@@ -978,7 +1181,7 @@
             }
 
             // Mostra o nome do usuário
-            const usuarioLogado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+            const usuarioLogado = obterUsuarioLogado();
             document.getElementById('nomeUsuario').textContent = usuarioLogado.nome;
 
             // Credenciais e Configurações (backup) só para o administrador.
@@ -1040,9 +1243,37 @@
         // Função para fazer logout
         window.handleLogout = function() {
             console.log('Botão de logout clicado');
-            sessionStorage.removeItem('usuarioLogado');
+            encerrarSessao();
             window.location.href = 'index.html';
         };
+
+        // Aviso de conexão e sessão por inatividade
+        iniciarMonitorConexao();
+        document.addEventListener('DOMContentLoaded', () => {
+            iniciarAtalhos();
+            document.getElementById('pularConteudo').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('content').focus();
+            });
+        });
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalSessao = document.getElementById('modalSessao');
+            const monitor = iniciarMonitorInatividade({
+                aoAvisar: (segundos) => {
+                    document.getElementById('sessaoSegundos').textContent = segundos;
+                    bootstrap.Modal.getOrCreateInstance(modalSessao).show();
+                },
+                aoRetomar: () => bootstrap.Modal.getOrCreateInstance(modalSessao).hide(),
+                aoExpirar: () => {
+                    encerrarSessao();
+                    window.location.href = 'index.html?motivo=expirada';
+                }
+            });
+            if (monitor) {
+                document.getElementById('btnSessaoContinuar').addEventListener('click', () => monitor.continuar());
+                document.getElementById('btnSessaoSair').addEventListener('click', () => window.handleLogout());
+            }
+        });
 
         // Event listener para o botão de logout
         document.addEventListener('DOMContentLoaded', function() {
@@ -1060,7 +1291,8 @@
     <script type="module">
         import { criarCredencial, verificarUsuarioExistente, listarCredenciais, atualizarCredencial, testarConexaoCredenciais } from './js/credenciais.js';
         import { verificarLogin } from './js/auth.js';
-        import { esc, mostrarMensagem } from './js/ui.js';
+        import { obterUsuarioLogado } from './js/sessao.js';
+        import { esc, mostrarMensagem, comBotaoOcupado } from './js/ui.js';
 
         window.mostrarMensagem = mostrarMensagem;
 
@@ -1108,13 +1340,17 @@
         }
 
         // Event listener para o botão salvar
-        document.getElementById('btnSalvarCredencial').addEventListener('click', salvarCredencial);
+        document.getElementById('btnSalvarCredencial').addEventListener('click', (e) => comBotaoOcupado(e.currentTarget, 'Salvando...', salvarCredencial));
 
         // Função para carregar a lista de credenciais
         async function carregarCredenciais() {
             const { success, data } = await listarCredenciais();
             const tbody = document.getElementById('tabelaCredenciais');
             tbody.innerHTML = '';
+
+            if (success && data && data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Nenhuma credencial cadastrada.</td></tr>';
+            }
 
             if (success && data) {
                 data.forEach(credencial => {
@@ -1155,7 +1391,7 @@
 
         // Carregar credenciais ao abrir a página (somente administrador)
         document.addEventListener('DOMContentLoaded', () => {
-            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado') || 'null');
+            const logado = obterUsuarioLogado();
             if (logado && logado.usuario === 'admin') carregarCredenciais();
         });
 
@@ -1167,7 +1403,7 @@
             bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAlterarSenha')).show();
         });
 
-        document.getElementById('btnSalvarNovaSenha').addEventListener('click', async () => {
+        document.getElementById('btnSalvarNovaSenha').addEventListener('click', (e) => comBotaoOcupado(e.currentTarget, 'Salvando...', async () => {
             const erro = document.getElementById('alterarSenhaErro');
             const mostrarErro = (msg) => { erro.textContent = msg; erro.classList.remove('d-none'); };
             erro.classList.add('d-none');
@@ -1175,7 +1411,7 @@
             const atual = document.getElementById('senhaAtual').value;
             const nova = document.getElementById('senhaNova').value;
             const confirmacao = document.getElementById('senhaConfirmacao').value;
-            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+            const logado = obterUsuarioLogado();
 
             if (nova.length < 6) return mostrarErro('A nova senha deve ter pelo menos 6 caracteres.');
             if (nova !== confirmacao) return mostrarErro('A confirmação não confere com a nova senha.');
@@ -1193,7 +1429,7 @@
             } catch (e) {
                 mostrarErro('Sem conexão com o servidor. Tente novamente.');
             }
-        });
+        }));
     </script>
 </body>
 </html> 

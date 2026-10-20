@@ -1,4 +1,5 @@
 // Supabase 2.39.3 empacotado localmente em vendor/ (sem dependência de CDN)
+import { obterUsuarioLogado } from './sessao.js';
 import { createClient } from '../vendor/supabase/supabase.js';
 
 // Configuração do Supabase
@@ -10,6 +11,28 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Exporta o cliente Supabase
 export { supabaseClient as supabase };
+
+// Nome do colaborador logado (gravado no histórico como responsável)
+function responsavelAtual() {
+    const usuario = obterUsuarioLogado();
+    return (usuario && usuario.nome) || 'Sistema';
+}
+
+function eventoHistorico(processoId, tipo, valor, data = new Date().toISOString()) {
+    return { processo_id: processoId, data, tipo, valor, responsavel: responsavelAtual() };
+}
+
+// Campos (além de status e número) que geram registro no histórico: "antes → depois"
+const CAMPOS_HISTORICO = [
+    { tipo: 'localizacao', coluna: 'localizacao_fisica', campo: 'localizacaoFisica' },
+    { tipo: 'requerente', coluna: 'requerente', campo: 'requerente' },
+    { tipo: 'contato', coluna: 'contato', campo: 'contato' },
+    { tipo: 'tipo_veiculo', coluna: 'tipo_veiculo', campo: 'tipoVeiculo' },
+    { tipo: 'placa', coluna: 'placa', campo: 'placa' },
+    { tipo: 'chassi', coluna: 'chassi', campo: 'chassi' },
+    { tipo: 'motivo', coluna: 'motivo_pendencia', campo: 'motivoPendencia' },
+    { tipo: 'data_inicial', coluna: 'data_inicial', campo: 'dataInicial' }
+];
 
 // Funções para manipulação de processos
 async function adicionarProcesso(processo) {
@@ -35,16 +58,13 @@ async function adicionarProcesso(processo) {
 
         if (error) throw error;
 
-        // Adiciona o histórico inicial
-        await supabaseClient
-            .from('historico')
-            .insert([{
-                processo_id: data[0].id,
-                data: new Date().toISOString(),
-                tipo: 'status',
-                valor: processo.status,
-                responsavel: 'Sistema'
-            }]);
+        // Adiciona o histórico inicial (status e, se informada, a localização)
+        const eventos = [eventoHistorico(data[0].id, 'status', processo.status)];
+        if (processo.localizacaoFisica) {
+            eventos.push(eventoHistorico(data[0].id, 'localizacao', ` → ${processo.localizacaoFisica}`));
+        }
+        const { error: erroHistorico } = await supabaseClient.from('historico').insert(eventos);
+        if (erroHistorico) console.warn('Histórico inicial não registrado:', erroHistorico);
 
         return data[0].id;
     } catch (error) {
@@ -86,31 +106,75 @@ async function atualizarProcesso(processo) {
         if (erroAtualizacao) throw erroAtualizacao;
 
         // Verifica alterações e registra no histórico
+        const eventos = [];
         if (processoAntigo.status !== processo.status) {
-            await supabaseClient
-                .from('historico')
-                .insert([{
-                    processo_id: processo.id,
-                    data: new Date().toISOString(),
-                    tipo: 'status',
-                    valor: processo.status,
-                    responsavel: 'Sistema'
-                }]);
+            eventos.push(eventoHistorico(processo.id, 'status', processo.status));
         }
+        if (processoAntigo.numero_processo !== processo.numeroProcesso) {
+            eventos.push(eventoHistorico(processo.id, 'numero', processo.numeroProcesso));
+        }
+        CAMPOS_HISTORICO.forEach(({ tipo, coluna, campo }) => {
+            if (processo[campo] === undefined) return; // campo não enviado: não alterado
+            const antes = processoAntigo[coluna] || '';
+            const depois = processo[campo] || '';
+            if (antes !== depois) {
+                eventos.push(eventoHistorico(processo.id, tipo, `${antes} → ${depois}`));
+            }
+        });
 
-        if (processoAntigo.numero_processo !== processo.numero_processo) {
-            await supabaseClient
-                .from('historico')
-                .insert([{
-                    processo_id: processo.id,
-                    data: new Date().toISOString(),
-                    tipo: 'numero',
-                    valor: processo.numero_processo,
-                    responsavel: 'Sistema'
-                }]);
+        let historicoOk = true;
+        if (eventos.length > 0) {
+            const { error: erroHistorico } = await supabaseClient.from('historico').insert(eventos);
+            if (erroHistorico) {
+                console.warn('Histórico não registrado:', erroHistorico);
+                historicoOk = false;
+            }
         }
+        return { historicoOk };
     } catch (error) {
         throw new Error('Erro ao atualizar processo: ' + error.message);
+    }
+}
+
+// Altera status e/ou localização de vários processos de uma vez
+async function atualizarEmLote(ids, campos) {
+    try {
+        if (!ids || ids.length === 0) return;
+
+        const alteracoes = {};
+        if (campos.status) alteracoes.status = campos.status;
+        if (campos.localizacaoFisica !== undefined) alteracoes.localizacao_fisica = campos.localizacaoFisica;
+        if (Object.keys(alteracoes).length === 0) return;
+
+        // Valores atuais, para registrar no histórico apenas o que mudou
+        const { data: antigos, error: erroBusca } = await supabaseClient
+            .from('processos')
+            .select('id, status, localizacao_fisica')
+            .in('id', ids);
+        if (erroBusca) throw erroBusca;
+
+        const { error } = await supabaseClient
+            .from('processos')
+            .update(alteracoes)
+            .in('id', ids);
+        if (error) throw error;
+
+        const agora = new Date().toISOString();
+        const eventos = [];
+        (antigos || []).forEach(antigo => {
+            if (campos.status && antigo.status !== campos.status) {
+                eventos.push(eventoHistorico(antigo.id, 'status', campos.status, agora));
+            }
+            if (campos.localizacaoFisica !== undefined && (antigo.localizacao_fisica || '') !== campos.localizacaoFisica) {
+                eventos.push(eventoHistorico(antigo.id, 'localizacao', `${antigo.localizacao_fisica || ''} → ${campos.localizacaoFisica}`, agora));
+            }
+        });
+        if (eventos.length > 0) {
+            const { error: erroHistorico } = await supabaseClient.from('historico').insert(eventos);
+            if (erroHistorico) console.warn('Histórico não registrado:', erroHistorico);
+        }
+    } catch (error) {
+        throw new Error('Erro ao atualizar processos: ' + error.message);
     }
 }
 
@@ -186,6 +250,9 @@ async function buscarProcessos(filtros = {}) {
         if (filtros.localizacaoFisica) {
             query = query.eq('localizacao_fisica', filtros.localizacaoFisica);
         }
+        if (filtros.dataAte) {
+            query = query.lte('data_inicial', filtros.dataAte);
+        }
         if (filtros.semLocalizacao) {
             query = query.or('localizacao_fisica.is.null,localizacao_fisica.eq.');
         }
@@ -219,6 +286,44 @@ async function buscarProcessos(filtros = {}) {
     } catch (error) {
         throw new Error('Erro ao buscar processos: ' + error.message);
     }
+}
+
+// Configurações do sistema (tabela "configuracoes", ver configuracoes.sql)
+async function buscarConfiguracao(chave) {
+    const { data, error } = await supabaseClient
+        .from('configuracoes')
+        .select('valor')
+        .eq('chave', chave)
+        .maybeSingle();
+
+    if (error) throw error;
+    return data ? data.valor : null;
+}
+
+async function salvarConfiguracao(chave, valor) {
+    const { error } = await supabaseClient
+        .from('configuracoes')
+        .upsert([{ chave, valor: String(valor) }], { onConflict: 'chave' });
+
+    if (error) throw error;
+}
+
+// Data em que cada processo foi finalizado pela primeira vez (a partir do histórico)
+async function buscarFinalizacoes() {
+    const { data, error } = await supabaseClient
+        .from('historico')
+        .select('processo_id, data')
+        .eq('tipo', 'status')
+        .eq('valor', 'Finalizado');
+
+    if (error) throw new Error('Erro ao buscar finalizações: ' + error.message);
+
+    const primeira = new Map();
+    data.forEach(h => {
+        const atual = primeira.get(h.processo_id);
+        if (!atual || h.data < atual) primeira.set(h.processo_id, h.data);
+    });
+    return [...primeira.values()];
 }
 
 async function buscarHistorico(processoId) {
@@ -365,10 +470,14 @@ async function verificarTabela(tabela) {
 export {
     adicionarProcesso,
     atualizarProcesso,
+    atualizarEmLote,
     buscarProcessoPorId,
     buscarProcessos,
     buscarProcessoPorNumero,
     buscarHistorico,
+    buscarConfiguracao,
+    salvarConfiguracao,
+    buscarFinalizacoes,
     realizarBackup,
     restaurarBackup,
     testarConexao,

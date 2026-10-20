@@ -339,7 +339,7 @@ td:last-child {
 .secao-form {
     margin: 1.25rem 0 0.75rem;
     padding-bottom: 0.4rem;
-    border-bottom: 1px solid #dee2e6;
+    border-bottom: 1px solid var(--bs-border-color);
     color: #4e73df;
     font-size: 1.05rem;
 }
@@ -426,9 +426,9 @@ tr.processo-atrasado > td {
     table.tabela-cards tr {
         margin-bottom: 0.75rem;
         padding: 0.5rem 0.75rem;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--bs-border-color);
         border-radius: 0.5rem;
-        background: #fff;
+        background: var(--bs-body-bg);
     }
 
     table.tabela-cards td {
@@ -459,4 +459,388 @@ tr.processo-atrasado > td {
         padding: 16px;
         padding-top: 64px; /* espaço para o botão do menu */
     }
+}
+
+/* Receber processo / ações em lote */
+.receber-barra {
+    max-width: 640px;
+}
+
+#tabelaResultados .form-check-input {
+    cursor: pointer;
+}
+
+tr.linha-selecionada > td {
+    background-color: #e7efff !important;
+}
+
+@media (max-width: 767.98px) {
+    .receber-barra {
+        max-width: none;
+    }
+}
+
+/* Linha do tempo do histórico */
+.timeline {
+    position: relative;
+    padding-left: 2.25rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.9rem;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    width: 2px;
+    background: var(--bs-border-color);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.1rem;
+}
+
+.timeline-marcador {
+    position: absolute;
+    left: -2.25rem;
+    top: 0;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: #fff;
+    background: #6c757d;
+}
+
+.timeline-marcador.atual {
+    box-shadow: 0 0 0 4px rgba(78, 115, 223, 0.25);
+}
+
+.timeline-etapa {
+    display: inline-block;
+    margin-top: 0.2rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 1rem;
+    background: #eef1fb;
+    color: #3b4a8f;
+    font-size: 0.8rem;
+}
+
+/* Resumo por localização */
+.tile-local {
+    cursor: pointer;
+    height: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    text-align: center;
+    background: var(--bs-body-bg);
+    transition: box-shadow 0.1s, transform 0.1s;
+}
+
+.tile-local:hover,
+.tile-local:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 0.35rem 0.75rem rgba(0, 0, 0, 0.12);
+    outline: none;
+}
+
+.tile-local .tile-numero {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.tile-local.tile-vazio {
+    border-style: dashed;
+}
+
+/* Gráfico mensal */
+.grafico-legenda {
+    display: flex;
+    gap: 1.25rem;
+    font-size: 0.9rem;
+}
+
+.grafico-cor {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-right: 0.3rem;
+    border-radius: 2px;
+}
+
+.grafico-cor-entradas { background: #4e73df; }
+.grafico-cor-finalizados { background: #1cc88a; }
+
+#graficoMensal svg {
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+}
+
+#graficoMensal .eixo-texto {
+    font-size: 11px;
+    fill: #6c757d;
+}
+
+#graficoMensal .valor-texto {
+    font-size: 11px;
+    font-weight: 600;
+    fill: #343a40;
+}
+
+/* Impressão de etiqueta */
+#areaImpressao {
+    display: none;
+}
+
+.etiqueta {
+    width: 100%;
+    max-width: 10cm;
+    padding: 0.5cm;
+    border: 2px solid #000;
+    font-size: 11pt;
+    color: #000;
+}
+
+.etiqueta-topo {
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.2cm;
+}
+
+.etiqueta-numero {
+    margin: 0.3cm 0;
+    font-size: 26pt;
+    font-weight: 700;
+    text-align: center;
+}
+
+.etiqueta-rotulo {
+    font-weight: 600;
+}
+
+.etiqueta-local {
+    margin: 0.25cm 0;
+    padding: 0.15cm;
+    border: 2px solid #000;
+    font-size: 16pt;
+    font-weight: 700;
+    text-align: center;
+}
+
+.etiqueta-rodape {
+    margin-top: 0.25cm;
+    font-size: 8pt;
+    text-align: right;
+}
+
+@media print {
+    body.imprimindo-etiqueta > *:not(#areaImpressao) {
+        display: none !important;
+    }
+
+    body.imprimindo-etiqueta #areaImpressao {
+        display: block !important;
+    }
+}
+
+/* Destaque da linha recém-alterada */
+@keyframes destaque-linha {
+    from { background-color: #fff3cd; }
+    to { background-color: transparent; }
+}
+
+tr.linha-destaque > td {
+    animation: destaque-linha 2.5s ease-out;
+}
+
+/* Campos obrigatórios (asterisco) */
+.obrigatorio::after {
+    content: ' *';
+    color: #dc3545;
+}
+
+#motivosFrequentes .btn,
+#editarMotivosFrequentes .btn {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#rascunhoAviso.d-flex,
+#editarDescartarBar.d-flex {
+    display: flex !important;
+}
+
+/* Aviso de conexão e confirmações */
+.banner-offline {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10001;
+    padding: 0.5rem 1rem;
+    background: #dc3545;
+    color: #fff;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+#modalConfirmar {
+    z-index: 1070;
+}
+
+/* Contraste: texto escuro sobre fundos claros (amarelo e ciano) */
+.badge.bg-warning,
+.badge.bg-info,
+.card.bg-warning,
+.card.bg-info {
+    color: #212529 !important;
+}
+
+/* Gráfico: linhas de grade */
+#graficoMensal .grade-linha {
+    stroke: #e9ecef;
+}
+
+/* Pular para o conteúdo */
+.pular-conteudo {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 10002;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    background: #fff;
+    color: #000;
+}
+
+#content:focus {
+    outline: none;
+}
+
+/* Aparência (menu lateral) */
+.sidebar-aparencia {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0 1rem 1rem;
+}
+
+.sidebar-colapsar {
+    display: none;
+}
+
+#sidebar .menu-texto {
+    margin-left: 0.25rem;
+}
+
+#sidebar ul li a i {
+    width: 1.4em;
+    text-align: center;
+}
+
+@media (min-width: 769px) {
+    .sidebar-header {
+        position: relative;
+    }
+
+    .sidebar-colapsar {
+        display: block;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 0.1rem 0.4rem;
+    }
+
+    html.sidebar-recolhida #sidebar {
+        min-width: 64px;
+        max-width: 64px;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-header {
+        padding: 50px 0 10px;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-header > :not(.sidebar-colapsar) {
+        display: none;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-colapsar {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) rotate(180deg);
+    }
+
+    html.sidebar-recolhida #sidebar .menu-texto {
+        display: none;
+    }
+
+    html.sidebar-recolhida #sidebar ul li a {
+        padding: 12px 0;
+        text-align: center;
+    }
+
+    html.sidebar-recolhida #sidebar .sidebar-aparencia {
+        flex-direction: column;
+        align-items: center;
+        padding: 0 0 1rem;
+    }
+}
+
+/* Tema escuro (Bootstrap cuida dos componentes; aqui só os ajustes próprios) */
+[data-bs-theme="dark"] .card-title,
+[data-bs-theme="dark"] .form-label {
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .table th {
+    background-color: var(--bs-tertiary-bg);
+}
+
+[data-bs-theme="dark"] tr.processo-atrasado > td {
+    background-color: #4a1f24 !important;
+}
+
+[data-bs-theme="dark"] tr.linha-selecionada > td {
+    background-color: #1f3a66 !important;
+}
+
+[data-bs-theme="dark"] table.tabela-cards tr.processo-atrasado {
+    background: #4a1f24;
+    border-color: #842029;
+}
+
+[data-bs-theme="dark"] .timeline-etapa {
+    background: #2b3350;
+    color: #b8c4ff;
+}
+
+[data-bs-theme="dark"] .secao-form {
+    color: #8fa8ff;
+}
+
+[data-bs-theme="dark"] #graficoMensal .grade-linha {
+    stroke: #495057;
+}
+
+[data-bs-theme="dark"] #graficoMensal .eixo-texto {
+    fill: #adb5bd;
+}
+
+[data-bs-theme="dark"] #graficoMensal .valor-texto {
+    fill: #e9ecef;
+}
+
+[data-bs-theme="dark"] .pular-conteudo {
+    background: #212529;
+    color: #fff;
 }

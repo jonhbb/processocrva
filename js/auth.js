@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { obterUsuarioLogado, encerrarSessao } from './sessao.js';
 
 // Verifica o login. Retorna o usuário, ou null se usuário/senha forem inválidos.
 // Lança erro quando não foi possível consultar o banco (ex.: sem conexão).
@@ -30,8 +31,7 @@ async function verificarLogin(usuario, senha) {
 
 // Função para verificar se está logado
 function verificarSessao() {
-    const usuarioLogado = sessionStorage.getItem('usuarioLogado');
-    return usuarioLogado !== null;
+    return obterUsuarioLogado() !== null;
 }
 
 // Função para fazer logout
@@ -39,7 +39,7 @@ function fazerLogout() {
     console.log('Iniciando processo de logout');
     try {
         // Limpa a sessão
-        sessionStorage.removeItem('usuarioLogado');
+        encerrarSessao();
         console.log('Sessão limpa com sucesso');
         
         // Redireciona para a página de login
