@@ -49,3 +49,20 @@ export function mostrarMensagem(mensagem, tipo = 'success') {
     document.getElementById('modalMensagemTexto').textContent = mensagem;
     bootstrap.Modal.getOrCreateInstance(modalMensagem).show();
 }
+
+// Contato com atalhos para ligar e abrir o WhatsApp (celular com DDD)
+export function contatoHtml(contato) {
+    const texto = String(contato ?? '').trim();
+    if (!texto) return '-';
+
+    const digitos = texto.replace(/\D/g, '');
+    const nacional = digitos.startsWith('55') && digitos.length >= 12 ? digitos.slice(2) : digitos;
+    if (nacional.length < 10 || nacional.length > 11) return esc(texto);
+
+    const completo = '55' + nacional;
+    const ligar = `<a class="ms-2" href="tel:+${completo}" title="Ligar" aria-label="Ligar para ${esc(texto)}"><i class="fas fa-phone"></i></a>`;
+    const whatsapp = nacional.length === 11
+        ? `<a class="ms-2" href="https://wa.me/${completo}" target="_blank" rel="noopener noreferrer" title="Abrir WhatsApp" aria-label="Abrir WhatsApp de ${esc(texto)}"><i class="fab fa-whatsapp"></i></a>`
+        : '';
+    return `<span>${esc(texto)}${ligar}${whatsapp}</span>`;
+}

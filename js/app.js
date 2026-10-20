@@ -14,7 +14,7 @@ import {
     restaurarBackup,
     testarConexao
 } from './supabase.js';
-import { esc, mostrarMensagem } from './ui.js';
+import { esc, mostrarMensagem, contatoHtml } from './ui.js';
 import { COLUNAS_EXPORT, exportarCSV, exportarPDF, imprimirEtiqueta } from './exportar.js';
 
 const ITENS_POR_PAGINA_PESQUISA = 10;
@@ -419,7 +419,7 @@ function criarLinhaTabelaPesquisa(processo) {
         <td data-label="Número">${esc(processo.numeroProcesso) || '-'}</td>
         <td data-label="Data">${esc(formatarDataBR(processo.dataInicial))}</td>
         <td data-label="Requerente">${esc(processo.requerente)}</td>
-        <td data-label="Contato">${esc(processo.contato) || '-'}</td>
+        <td data-label="Contato">${contatoHtml(processo.contato)}</td>
         <td data-label="Veículo">${esc(processo.tipoVeiculo)}</td>
         <td data-label="Placa">${esc(processo.placa) || '-'}</td>
         <td data-label="Status"><span class="badge bg-${getStatusColor(processo.status)}">${esc(processo.status)}</span>${alertaParado}</td>
@@ -663,10 +663,13 @@ window.abrirModalEditar = function(processoId) {
         document.getElementById('editarLocalizacaoFisica').value = processo.localizacaoFisica || '';
         document.getElementById('editarProcessoId').value = processo.id;
         window.dispatchEvent(new Event('regra-localizacao'));
+        editarBaseline = fotografar(CAMPOS_EDICAO);
+        editarPermitirFechar = false;
+        document.getElementById('editarDescartarBar').classList.add('d-none');
+        document.getElementById('editarDescartarBar').classList.remove('d-flex');
 
         // Abre o modal
-        const modal = new bootstrap.Modal(document.getElementById('modalEditar'));
-        modal.show();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditar')).show();
     }).catch(error => {
         mostrarMensagem('Erro ao buscar dados do processo: ' + error, 'danger');
     });
@@ -692,6 +695,7 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
         window.mostrarLoading('Salvando alterações...');
         const resultado = await atualizarProcesso(processo);
         window.esconderLoading();
+        editarPermitirFechar = true;
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditar'));
         modal.hide();
         mostrarMensagem('Processo atualizado com sucesso!');
@@ -959,6 +963,7 @@ async function atualizarDashboard() {
         document.getElementById('processosPendentes').textContent = processos.filter(p => p.status === 'Pendente').length;
 
         renderizarAtencao(processos);
+        atualizarSugestoes(processos);
         renderizarResumoLocalizacao(processos);
         buscarFinalizacoes()
             .then(finalizacoes => renderizarGraficoMensal(processos, finalizacoes))
@@ -1265,6 +1270,148 @@ function formatarDataBR(dataISO) {
     return `${dia}-${mes}-${ano}`;
 }
 
+// Cadastro: rascunho automático e aviso de alterações não salvas
+const CAMPOS_CADASTRO = ['numeroProcesso', 'dataInicial', 'requerente', 'contato', 'tipoVeiculo', 'placa', 'chassi', 'status', 'localizacaoFisica', 'motivoPendencia'];
+const CAMPOS_EDICAO = ['editarNumeroProcesso', 'editarDataInicial', 'editarRequerente', 'editarContato', 'editarChassi', 'editarTipoVeiculo', 'editarPlaca', 'editarStatus', 'editarMotivoPendencia', 'editarLocalizacaoFisica'];
+const CHAVE_RASCUNHO = 'rascunhoCadastro';
+let baselineCadastro = null;
+let editarBaseline = null;
+let editarPermitirFechar = false;
+let sugestoesMotivos = [];
+
+function fotografar(ids) {
+    const valores = {};
+    ids.forEach(id => { valores[id] = document.getElementById(id).value; });
+    return JSON.stringify(valores);
+}
+
+function registrarBaselineCadastro() {
+    baselineCadastro = fotografar(CAMPOS_CADASTRO);
+}
+
+function cadastroSujo() {
+    return baselineCadastro !== null && fotografar(CAMPOS_CADASTRO) !== baselineCadastro;
+}
+
+function editarSujo() {
+    return editarBaseline !== null
+        && document.getElementById('modalEditar').classList.contains('show')
+        && fotografar(CAMPOS_EDICAO) !== editarBaseline;
+}
+
+function salvarRascunho() {
+    try {
+        if (cadastroSujo()) {
+            localStorage.setItem(CHAVE_RASCUNHO, JSON.stringify({
+                valores: JSON.parse(fotografar(CAMPOS_CADASTRO)),
+                em: new Date().toISOString()
+            }));
+        } else {
+            localStorage.removeItem(CHAVE_RASCUNHO);
+        }
+    } catch (e) { /* armazenamento indisponível: segue sem rascunho */ }
+}
+
+function descartarRascunho() {
+    try {
+        localStorage.removeItem(CHAVE_RASCUNHO);
+    } catch (e) { /* ignora */ }
+    const aviso = document.getElementById('rascunhoAviso');
+    aviso.classList.add('d-none');
+    aviso.classList.remove('d-flex');
+}
+
+function restaurarRascunho() {
+    try {
+        const rascunho = JSON.parse(localStorage.getItem(CHAVE_RASCUNHO));
+        if (!rascunho || !rascunho.valores || cadastroSujo()) return;
+
+        CAMPOS_CADASTRO.forEach(id => {
+            if (rascunho.valores[id] !== undefined) document.getElementById(id).value = rascunho.valores[id];
+        });
+        window.dispatchEvent(new Event('regra-localizacao'));
+
+        document.getElementById('rascunhoAvisoTexto').textContent =
+            `Rascunho restaurado (salvo em ${new Date(rascunho.em).toLocaleString('pt-BR')}).`;
+        const aviso = document.getElementById('rascunhoAviso');
+        aviso.classList.remove('d-none');
+        aviso.classList.add('d-flex');
+    } catch (e) { /* rascunho inválido: ignora */ }
+}
+
+// Sugestões a partir dos processos já cadastrados
+function frequencias(valores) {
+    const mapa = new Map();
+    valores.forEach(valor => {
+        const texto = String(valor || '').trim();
+        const chave = normalizar(texto);
+        if (!chave) return;
+        const existente = mapa.get(chave);
+        if (existente) existente.quantidade++;
+        else mapa.set(chave, { texto, quantidade: 1 });
+    });
+    return [...mapa.values()].sort((a, b) => b.quantidade - a.quantidade);
+}
+
+function renderizarMotivosFrequentes(containerId, campoId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    container.classList.toggle('d-none', sugestoesMotivos.length === 0);
+    if (sugestoesMotivos.length === 0) return;
+
+    const rotulo = document.createElement('span');
+    rotulo.className = 'small text-muted align-self-center';
+    rotulo.textContent = 'Motivos frequentes:';
+    container.appendChild(rotulo);
+
+    sugestoesMotivos.forEach(texto => {
+        const botao = document.createElement('button');
+        botao.type = 'button';
+        botao.className = 'btn btn-sm btn-outline-secondary';
+        botao.textContent = texto;
+        botao.title = texto;
+        botao.addEventListener('click', () => {
+            const campo = document.getElementById(campoId);
+            if (!campo.value.trim()) {
+                campo.value = texto;
+            } else if (!normalizar(campo.value).includes(normalizar(texto))) {
+                campo.value = `${campo.value.trim()}; ${texto}`;
+            }
+            campo.dispatchEvent(new Event('input', { bubbles: true }));
+            campo.focus();
+        });
+        container.appendChild(botao);
+    });
+}
+
+function atualizarSugestoes(processos) {
+    const requerentes = frequencias(processos.map(p => p.requerente)).slice(0, 300);
+    document.getElementById('listaRequerentes').innerHTML =
+        requerentes.map(r => `<option value="${esc(r.texto)}"></option>`).join('');
+
+    sugestoesMotivos = frequencias(processos.map(p => p.motivoPendencia))
+        .filter(m => m.quantidade >= 2 && m.texto.length <= 60)
+        .slice(0, 6)
+        .map(m => m.texto);
+    renderizarMotivosFrequentes('motivosFrequentes', 'motivoPendencia');
+    renderizarMotivosFrequentes('editarMotivosFrequentes', 'editarMotivoPendencia');
+}
+
+// Motivo da pendência só é obrigatório quando o status é Pendente
+function ligarRegraMotivo(statusId, motivoId) {
+    const status = document.getElementById(statusId);
+    const motivo = document.getElementById(motivoId);
+    const rotulo = document.querySelector(`label[for="${motivoId}"]`);
+    const aplicar = () => {
+        const exige = status.value === 'Pendente';
+        motivo.required = exige;
+        rotulo.classList.toggle('obrigatorio', exige);
+    };
+    status.addEventListener('change', aplicar);
+    window.addEventListener('regra-localizacao', aplicar);
+    aplicar();
+}
+
 // Finalizado sugere "Processo finalizado"; combinação incoerente gera aviso
 function ligarRegraLocalizacao(statusId, localId, avisoId) {
     const status = document.getElementById(statusId);
@@ -1297,6 +1444,7 @@ function prepararFormularioCadastro() {
     document.getElementById('dataInicial').value = hojeISO();
     esconderAvisoDuplicado();
     window.dispatchEvent(new Event('regra-localizacao'));
+    registrarBaselineCadastro();
 }
 
 function esconderAvisoDuplicado() {
@@ -1406,7 +1554,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         document.getElementById(campo).value = valor;
                     });
                     window.dispatchEvent(new Event('regra-localizacao'));
+                    registrarBaselineCadastro();
                 }
+                descartarRascunho();
                 pesquisaCarregada = false;
                 new bootstrap.Modal(document.getElementById('modalCadastroSucesso')).show();
                 atualizarDashboard();
@@ -1579,7 +1729,54 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderizarTabelaPesquisaPaginada();
         });
 
+        // Rascunho automático e alterações não salvas
+        const formCadastro = document.getElementById('processoForm');
+        let timerRascunho = null;
+        const agendarRascunho = () => {
+            clearTimeout(timerRascunho);
+            timerRascunho = setTimeout(salvarRascunho, 500);
+        };
+        formCadastro.addEventListener('input', agendarRascunho);
+        formCadastro.addEventListener('change', agendarRascunho);
+        document.getElementById('btnDescartarRascunho').addEventListener('click', () => {
+            limparFormulario('processoForm');
+            prepararFormularioCadastro();
+            descartarRascunho();
+        });
+        restaurarRascunho();
+
+        window.addEventListener('beforeunload', (e) => {
+            if (cadastroSujo() || editarSujo()) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        const modalEditarEl = document.getElementById('modalEditar');
+        const barraDescartar = document.getElementById('editarDescartarBar');
+        const mostrarBarraDescartar = (mostrar) => {
+            barraDescartar.classList.toggle('d-none', !mostrar);
+            barraDescartar.classList.toggle('d-flex', mostrar);
+        };
+        modalEditarEl.addEventListener('hide.bs.modal', (e) => {
+            if (!editarPermitirFechar && editarSujo()) {
+                e.preventDefault();
+                mostrarBarraDescartar(true);
+            }
+        });
+        modalEditarEl.addEventListener('hidden.bs.modal', () => {
+            editarBaseline = null;
+            mostrarBarraDescartar(false);
+        });
+        document.getElementById('btnContinuarEditando').addEventListener('click', () => mostrarBarraDescartar(false));
+        document.getElementById('btnDescartarEdicao').addEventListener('click', () => {
+            editarPermitirFechar = true;
+            bootstrap.Modal.getInstance(modalEditarEl).hide();
+        });
+
         // Regra: localização física x status
+        ligarRegraMotivo('status', 'motivoPendencia');
+        ligarRegraMotivo('editarStatus', 'editarMotivoPendencia');
         ligarRegraLocalizacao('status', 'localizacaoFisica', 'localizacaoHint');
         ligarRegraLocalizacao('editarStatus', 'editarLocalizacaoFisica', 'editarLocalizacaoHint');
 

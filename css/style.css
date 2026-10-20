@@ -660,3 +660,22 @@ tr.linha-selecionada > td {
 tr.linha-destaque > td {
     animation: destaque-linha 2.5s ease-out;
 }
+
+/* Campos obrigatórios (asterisco) */
+.obrigatorio::after {
+    content: ' *';
+    color: #dc3545;
+}
+
+#motivosFrequentes .btn,
+#editarMotivosFrequentes .btn {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#rascunhoAviso.d-flex,
+#editarDescartarBar.d-flex {
+    display: flex !important;
+}
