@@ -4,6 +4,7 @@ import {
     atualizarProcesso, 
     buscarProcessoPorId, 
     buscarProcessos, 
+    buscarProcessoPorNumero,
     buscarHistorico,
     realizarBackup,
     restaurarBackup,
@@ -11,8 +12,43 @@ import {
 } from './supabase.js';
 
 const ITENS_POR_PAGINA_PESQUISA = 10;
+const DIAS_ATENCAO = 30;
 let pesquisaProcessosCache = [];
 let pesquisaPaginaAtual = 1;
+let pesquisaCarregada = false;
+let pesquisaRequisicao = 0;
+let pesquisaSemLocalizacao = false;
+let pesquisaOrdenacao = { campo: 'dataInicial', dir: 'desc' };
+let ultimoProcessoCadastradoId = null;
+let numeroDuplicadoId = null;
+
+// Escapa texto antes de inserir em innerHTML
+function esc(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
+
+function hojeISO() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function diasDesde(dataISO) {
+    if (!dataISO) return null;
+    const [ano, mes, dia] = String(dataISO).slice(0, 10).split('-').map(Number);
+    if (!ano || !mes || !dia) return null;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return Math.floor((hoje - new Date(ano, mes - 1, dia)) / 86400000);
+}
+
+function estaParado(processo) {
+    if (processo.status !== 'Pendente') return false;
+    const dias = diasDesde(processo.dataInicial);
+    return dias !== null && dias >= DIAS_ATENCAO;
+}
 
 // Funções de validação
 function validarPlaca(placa) {
@@ -65,6 +101,126 @@ function navegarPara(pagina) {
     
     document.querySelectorAll('#sidebar li').forEach(li => li.classList.remove('active'));
     document.querySelector(`#sidebar li a[data-page="${pagina}"]`).parentElement.classList.add('active');
+
+    if (pagina === 'pesquisa' && !pesquisaCarregada) {
+        executarPesquisa({ silencioso: true });
+    }
+    if (pagina === 'cadastro') {
+        const data = document.getElementById('dataInicial');
+        if (!data.value) data.value = hojeISO();
+    }
+}
+
+// Pesquisa: filtros, chips e ordenação
+const FILTROS_PESQUISA = [
+    { chave: 'busca', rotulo: 'Busca', campo: 'pesquisaBusca' },
+    { chave: 'numeroProcesso', rotulo: 'Nº', campo: 'pesquisaNumero' },
+    { chave: 'placa', rotulo: 'Placa', campo: 'pesquisaPlaca' },
+    { chave: 'tipoVeiculo', rotulo: 'Veículo', campo: 'pesquisaTipoVeiculo' },
+    { chave: 'status', rotulo: 'Status', campo: 'pesquisaStatus' },
+    { chave: 'localizacaoFisica', rotulo: 'Local', campo: 'pesquisaLocalizacao' }
+];
+
+function coletarFiltrosPesquisa() {
+    const filtros = {};
+    FILTROS_PESQUISA.forEach(f => {
+        filtros[f.chave] = document.getElementById(f.campo).value.trim();
+    });
+    filtros.semLocalizacao = pesquisaSemLocalizacao;
+    return filtros;
+}
+
+function atualizarChipsPesquisa(filtros) {
+    const container = document.getElementById('pesquisaChips');
+    container.innerHTML = '';
+
+    const adicionarChip = (texto, aoRemover) => {
+        const chip = document.createElement('span');
+        chip.className = 'badge bg-primary d-inline-flex align-items-center';
+        chip.appendChild(document.createTextNode(texto));
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-close btn-close-white';
+        btn.setAttribute('aria-label', 'Remover filtro');
+        btn.addEventListener('click', () => {
+            aoRemover();
+            executarPesquisa({ silencioso: true });
+        });
+        chip.appendChild(btn);
+        container.appendChild(chip);
+    };
+
+    FILTROS_PESQUISA.forEach(f => {
+        if (filtros[f.chave]) {
+            adicionarChip(`${f.rotulo}: ${filtros[f.chave]}`, () => {
+                document.getElementById(f.campo).value = '';
+            });
+        }
+    });
+    if (filtros.semLocalizacao) {
+        adicionarChip('Sem localização física', () => { pesquisaSemLocalizacao = false; });
+    }
+}
+
+async function executarPesquisa({ silencioso = false } = {}) {
+    const filtros = coletarFiltrosPesquisa();
+    const requisicao = ++pesquisaRequisicao;
+    pesquisaCarregada = true;
+    atualizarChipsPesquisa(filtros);
+
+    try {
+        if (!silencioso) window.mostrarLoading('Pesquisando...');
+        const processos = await buscarProcessos(filtros);
+        if (requisicao !== pesquisaRequisicao) return; // resposta antiga: descarta
+        pesquisaProcessosCache = processos;
+        pesquisaPaginaAtual = 1;
+        renderizarTabelaPesquisaPaginada();
+    } catch (error) {
+        if (requisicao === pesquisaRequisicao) {
+            mostrarMensagem('Erro ao buscar processos: ' + error, 'danger');
+        }
+    } finally {
+        if (!silencioso) window.esconderLoading();
+    }
+}
+
+function limparFiltrosPesquisa() {
+    FILTROS_PESQUISA.forEach(f => { document.getElementById(f.campo).value = ''; });
+    pesquisaSemLocalizacao = false;
+}
+
+// Usado pelo dashboard: abre a pesquisa já filtrada
+function aplicarFiltrosPesquisa(filtros = {}, ordenacao = null) {
+    limparFiltrosPesquisa();
+    FILTROS_PESQUISA.forEach(f => {
+        if (filtros[f.chave]) document.getElementById(f.campo).value = filtros[f.chave];
+    });
+    pesquisaSemLocalizacao = !!filtros.semLocalizacao;
+    if (ordenacao) pesquisaOrdenacao = ordenacao;
+    pesquisaCarregada = true;
+    navegarPara('pesquisa');
+    executarPesquisa();
+}
+
+function ordenarProcessos(lista) {
+    const { campo, dir } = pesquisaOrdenacao;
+    const fator = dir === 'asc' ? 1 : -1;
+    return [...lista].sort((a, b) => {
+        const va = a[campo] ?? '';
+        const vb = b[campo] ?? '';
+        if (va === '' && vb !== '') return 1;  // vazios sempre por último
+        if (vb === '' && va !== '') return -1;
+        return String(va).localeCompare(String(vb), 'pt-BR', { numeric: true }) * fator;
+    });
+}
+
+function atualizarIndicadoresOrdenacao() {
+    document.querySelectorAll('th.ordenavel').forEach(th => {
+        const ativo = th.dataset.ordenar === pesquisaOrdenacao.campo;
+        th.classList.toggle('ordenado', ativo);
+        const icone = th.querySelector('i');
+        icone.className = 'fas ' + (ativo ? (pesquisaOrdenacao.dir === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort');
+    });
 }
 
 // Funções de manipulação de formulários
@@ -90,22 +246,28 @@ function coletarDadosProcesso() {
 // Funções de exibição
 function criarLinhaTabelaPesquisa(processo) {
     const tr = document.createElement('tr');
+    const parado = estaParado(processo);
+    if (parado) tr.classList.add('processo-atrasado');
+    const dias = diasDesde(processo.dataInicial);
+    const alertaParado = parado
+        ? `<span class="badge bg-danger ms-1" title="Pendente desde ${esc(formatarDataBR(processo.dataInicial))}">há ${dias} dias</span>`
+        : '';
     tr.innerHTML = `
-        <td>${processo.numeroProcesso || '-'}</td>
-        <td>${formatarDataBR(processo.dataInicial)}</td>
-        <td>${processo.requerente}</td>
-        <td>${processo.contato || '-'}</td>
-        <td>${processo.tipoVeiculo}</td>
-        <td>${processo.placa || '-'}</td>
-        <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
-        <td>${processo.motivoPendencia || '-'}</td>
-        <td><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${processo.localizacaoFisica || '-'}</span></td>
+        <td>${esc(processo.numeroProcesso) || '-'}</td>
+        <td>${esc(formatarDataBR(processo.dataInicial))}</td>
+        <td>${esc(processo.requerente)}</td>
+        <td>${esc(processo.contato) || '-'}</td>
+        <td>${esc(processo.tipoVeiculo)}</td>
+        <td>${esc(processo.placa) || '-'}</td>
+        <td><span class="badge bg-${getStatusColor(processo.status)}">${esc(processo.status)}</span>${alertaParado}</td>
+        <td>${esc(processo.motivoPendencia) || '-'}</td>
+        <td><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${esc(processo.localizacaoFisica) || '-'}</span></td>
         <td>
             <div class="btn-group" role="group">
-                <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${processo.id})">
+                <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${Number(processo.id)})">
                     <i class="fas fa-edit"></i> Editar
                 </button>
-                <button type="button" class="btn btn-sm btn-info" onclick="window.abrirModalHistorico(${processo.id})">
+                <button type="button" class="btn btn-sm btn-info" onclick="window.abrirModalHistorico(${Number(processo.id)})">
                     <i class="fas fa-history"></i> Histórico
                 </button>
             </div>
@@ -124,9 +286,11 @@ function renderizarTabelaPesquisaPaginada() {
         pesquisaPaginaAtual = totalPaginas;
     }
     const inicio = (pesquisaPaginaAtual - 1) * ITENS_POR_PAGINA_PESQUISA;
-    const slice = pesquisaProcessosCache.slice(inicio, inicio + ITENS_POR_PAGINA_PESQUISA);
+    const slice = ordenarProcessos(pesquisaProcessosCache).slice(inicio, inicio + ITENS_POR_PAGINA_PESQUISA);
 
     slice.forEach(processo => tbody.appendChild(criarLinhaTabelaPesquisa(processo)));
+    atualizarIndicadoresOrdenacao();
+    document.getElementById('pesquisaVazio').classList.toggle('d-none', total !== 0);
 
     const nav = document.getElementById('pesquisaPaginacao');
     if (!nav) return;
@@ -276,6 +440,43 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', async () =>
 });
 
 // Funções do Dashboard
+function renderizarListaAtencao(containerId, totalId, lista) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    document.getElementById(totalId).textContent = lista.length;
+
+    if (lista.length === 0) {
+        container.innerHTML = '<div class="text-muted small">Nenhum processo nesta situação.</div>';
+        return;
+    }
+
+    lista.slice(0, 5).forEach(processo => {
+        const dias = diasDesde(processo.dataInicial);
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-center px-0';
+        item.innerHTML = `
+            <div>
+                <strong>${esc(processo.numeroProcesso) || 'Sem número'}</strong>
+                <span class="text-muted">- ${esc(processo.requerente)}</span>
+                ${dias !== null ? `<span class="badge bg-danger ms-1">há ${dias} dias</span>` : ''}
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="window.abrirModalEditar(${Number(processo.id)})">Abrir</button>
+        `;
+        container.appendChild(item);
+    });
+}
+
+function renderizarAtencao(processos) {
+    const maisAntigosPrimeiro = (a, b) => String(a.dataInicial || '').localeCompare(String(b.dataInicial || ''));
+    const parados = processos.filter(estaParado).sort(maisAntigosPrimeiro);
+    const semLocal = processos
+        .filter(p => p.status === 'Pendente' && !p.localizacaoFisica)
+        .sort(maisAntigosPrimeiro);
+
+    renderizarListaAtencao('atencaoParados', 'atencaoParadosTotal', parados);
+    renderizarListaAtencao('atencaoSemLocal', 'atencaoSemLocalTotal', semLocal);
+}
+
 async function atualizarDashboard() {
     try {
         // Busca todos os processos
@@ -288,6 +489,8 @@ async function atualizarDashboard() {
         document.getElementById('processosCancelados').textContent = processos.filter(p => p.status === 'Cancelado').length;
         document.getElementById('processosFinalizados').textContent = processos.filter(p => p.status === 'Finalizado').length;
         document.getElementById('processosPendentes').textContent = processos.filter(p => p.status === 'Pendente').length;
+
+        renderizarAtencao(processos);
 
         // Atualiza últimos processos
         const tbodyUltimos = document.getElementById('ultimosProcessos');
@@ -677,6 +880,40 @@ function formatarDataBR(dataISO) {
     return `${dia}-${mes}-${ano}`;
 }
 
+function prepararFormularioCadastro() {
+    document.getElementById('dataInicial').value = hojeISO();
+    esconderAvisoDuplicado();
+}
+
+function esconderAvisoDuplicado() {
+    numeroDuplicadoId = null;
+    document.getElementById('avisoDuplicado').classList.add('d-none');
+}
+
+async function verificarNumeroDuplicado() {
+    const campo = document.getElementById('numeroProcesso');
+    const numero = campo.value.trim();
+    if (!numero) {
+        esconderAvisoDuplicado();
+        return;
+    }
+
+    try {
+        const existente = await buscarProcessoPorNumero(numero);
+        if (campo.value.trim() !== numero) return; // campo mudou durante a consulta
+        if (existente) {
+            numeroDuplicadoId = existente.id;
+            document.getElementById('avisoDuplicadoTexto').textContent =
+                `Já existe o processo ${existente.numeroProcesso} cadastrado (${existente.requerente || 'sem requerente'}).`;
+            document.getElementById('avisoDuplicado').classList.remove('d-none');
+        } else {
+            esconderAvisoDuplicado();
+        }
+    } catch (error) {
+        console.warn('Não foi possível verificar duplicidade:', error);
+    }
+}
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -703,6 +940,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Formulário de cadastro
+        prepararFormularioCadastro();
+
+        const campoNumero = document.getElementById('numeroProcesso');
+        campoNumero.addEventListener('input', esconderAvisoDuplicado);
+        campoNumero.addEventListener('blur', verificarNumeroDuplicado);
+        document.getElementById('btnAbrirDuplicado').addEventListener('click', () => {
+            if (numeroDuplicadoId) window.abrirModalEditar(numeroDuplicadoId);
+        });
+
         document.getElementById('processoForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -717,10 +963,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             try {
                 window.mostrarLoading('Salvando processo...');
-                await adicionarProcesso(processo);
+                ultimoProcessoCadastradoId = await adicionarProcesso(processo);
                 window.esconderLoading();
-                mostrarMensagem('Processo cadastrado com sucesso!');
+                document.getElementById('cadastroSucessoNumero').textContent = processo.numeroProcesso || '(sem número)';
                 limparFormulario('processoForm');
+                prepararFormularioCadastro();
+                pesquisaCarregada = false;
+                new bootstrap.Modal(document.getElementById('modalCadastroSucesso')).show();
                 atualizarDashboard();
             } catch (error) {
                 window.esconderLoading();
@@ -728,26 +977,79 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Formulário de pesquisa
-        document.getElementById('pesquisaForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const filtros = {
-                numeroProcesso: document.getElementById('pesquisaNumero').value,
-                placa: document.getElementById('pesquisaPlaca').value,
-                tipoVeiculo: document.getElementById('pesquisaTipoVeiculo').value,
-                status: document.getElementById('pesquisaStatus').value
-            };
+        document.getElementById('btnCadastrarOutro').addEventListener('click', () => {
+            const modalEl = document.getElementById('modalCadastroSucesso');
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                document.getElementById('numeroProcesso').focus();
+            }, { once: true });
+            bootstrap.Modal.getInstance(modalEl).hide();
+        });
 
-            try {
-                window.mostrarLoading('Pesquisando...');
-                const processos = await buscarProcessos(filtros);
-                window.esconderLoading();
-                exibirProcessos(processos);
-            } catch (error) {
-                window.esconderLoading();
-                mostrarMensagem('Erro ao buscar processos: ' + error, 'danger');
-            }
+        document.getElementById('btnVerProcessoCadastrado').addEventListener('click', () => {
+            const modalEl = document.getElementById('modalCadastroSucesso');
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                if (ultimoProcessoCadastradoId) window.abrirModalEditar(ultimoProcessoCadastradoId);
+            }, { once: true });
+            bootstrap.Modal.getInstance(modalEl).hide();
+        });
+
+        // Formulário de pesquisa
+        document.getElementById('pesquisaForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            executarPesquisa();
+        });
+
+        // Pesquisa ao digitar (debounce) e ao trocar filtros
+        let timerPesquisa = null;
+        const pesquisarComAtraso = () => {
+            clearTimeout(timerPesquisa);
+            timerPesquisa = setTimeout(() => executarPesquisa({ silencioso: true }), 400);
+        };
+        ['pesquisaBusca', 'pesquisaNumero', 'pesquisaPlaca'].forEach(id => {
+            document.getElementById(id).addEventListener('input', pesquisarComAtraso);
+        });
+        ['pesquisaTipoVeiculo', 'pesquisaStatus', 'pesquisaLocalizacao'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                if (id === 'pesquisaLocalizacao') pesquisaSemLocalizacao = false;
+                executarPesquisa({ silencioso: true });
+            });
+        });
+
+        document.getElementById('btnLimparPesquisa').addEventListener('click', () => {
+            limparFiltrosPesquisa();
+            executarPesquisa({ silencioso: true });
+        });
+
+        // Ordenação por coluna
+        document.querySelectorAll('th.ordenavel').forEach(th => {
+            th.addEventListener('click', () => {
+                const campo = th.dataset.ordenar;
+                if (pesquisaOrdenacao.campo === campo) {
+                    pesquisaOrdenacao.dir = pesquisaOrdenacao.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    pesquisaOrdenacao = { campo, dir: campo === 'dataInicial' ? 'desc' : 'asc' };
+                }
+                pesquisaPaginaAtual = 1;
+                renderizarTabelaPesquisaPaginada();
+            });
+        });
+
+        // Dashboard: cards clicáveis e atalhos de atenção
+        document.querySelectorAll('.card-clicavel').forEach(card => {
+            const abrir = () => aplicarFiltrosPesquisa({ status: card.dataset.filtroStatus });
+            card.addEventListener('click', abrir);
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    abrir();
+                }
+            });
+        });
+        document.getElementById('btnVerParados').addEventListener('click', () => {
+            aplicarFiltrosPesquisa({ status: 'Pendente' }, { campo: 'dataInicial', dir: 'asc' });
+        });
+        document.getElementById('btnVerSemLocal').addEventListener('click', () => {
+            aplicarFiltrosPesquisa({ status: 'Pendente', semLocalizacao: true }, { campo: 'dataInicial', dir: 'asc' });
         });
 
         document.getElementById('btnPesquisaAnterior').addEventListener('click', () => {

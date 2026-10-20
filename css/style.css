@@ -335,3 +335,58 @@ td:last-child {
         padding-top: 60px;
     }
 } 
+/* Cadastro: seções do formulário */
+.secao-form {
+    margin: 1.25rem 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #dee2e6;
+    color: #4e73df;
+    font-size: 1.05rem;
+}
+
+.secao-form:first-of-type {
+    margin-top: 0.5rem;
+}
+
+/* Dashboard: cards clicáveis */
+.card-clicavel {
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.card-clicavel:hover,
+.card-clicavel:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 0.35rem 0.75rem rgba(0, 0, 0, 0.2);
+    outline: none;
+}
+
+/* Pesquisa: ordenação e destaque de atrasados */
+th.ordenavel {
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+}
+
+th.ordenavel i {
+    color: #adb5bd;
+    font-size: 0.8em;
+}
+
+th.ordenavel.ordenado i {
+    color: #4e73df;
+}
+
+tr.processo-atrasado > td {
+    background-color: #fdecea !important;
+}
+
+#pesquisaChips .badge {
+    font-weight: 500;
+}
+
+#pesquisaChips .btn-close {
+    font-size: 0.6em;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+}

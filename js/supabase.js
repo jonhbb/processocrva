@@ -144,6 +144,26 @@ async function buscarProcessoPorId(id) {
     }
 }
 
+async function buscarProcessoPorNumero(numero) {
+    try {
+        const { data, error } = await supabaseClient
+            .from('processos')
+            .select('id, numero_processo, requerente')
+            .eq('numero_processo', numero)
+            .limit(1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) return null;
+        return {
+            id: data[0].id,
+            numeroProcesso: data[0].numero_processo,
+            requerente: data[0].requerente
+        };
+    } catch (error) {
+        throw new Error('Erro ao verificar número do processo: ' + error.message);
+    }
+}
+
 async function buscarProcessos(filtros = {}) {
     try {
         let query = supabaseClient
@@ -162,6 +182,20 @@ async function buscarProcessos(filtros = {}) {
         }
         if (filtros.status) {
             query = query.eq('status', filtros.status);
+        }
+        if (filtros.localizacaoFisica) {
+            query = query.eq('localizacao_fisica', filtros.localizacaoFisica);
+        }
+        if (filtros.semLocalizacao) {
+            query = query.or('localizacao_fisica.is.null,localizacao_fisica.eq.');
+        }
+        if (filtros.busca) {
+            // Remove caracteres reservados da sintaxe do filtro .or()
+            const termo = filtros.busca.trim().replace(/[,()"\\*%]/g, ' ').trim();
+            if (termo) {
+                const colunas = ['numero_processo', 'requerente', 'contato', 'placa', 'chassi', 'motivo_pendencia'];
+                query = query.or(colunas.map(c => `${c}.ilike.*${termo}*`).join(','));
+            }
         }
 
         const { data, error } = await query;
@@ -333,6 +367,7 @@ export {
     atualizarProcesso,
     buscarProcessoPorId,
     buscarProcessos,
+    buscarProcessoPorNumero,
     buscarHistorico,
     realizarBackup,
     restaurarBackup,
