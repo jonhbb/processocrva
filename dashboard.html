@@ -4,14 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRVA 0371 - Controle de Processos Pendentes</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <!-- Bibliotecas para PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-    <!-- Biblioteca para gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="vendor/jspdf/jspdf.umd.min.js"></script>
+    <script src="vendor/jspdf/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <!-- Loading Overlay -->
@@ -34,6 +32,7 @@
                 <p>Tramandaí/RS</p>
                 <div class="user-info">
                     <span id="nomeUsuario"></span>
+                    <a href="#" class="d-block small text-white-50 mb-2" id="btnAlterarSenha"><i class="fas fa-key"></i> Alterar minha senha</a>
                     <button type="button" class="btn btn-sm btn-danger" id="btnLogout">
                         <i class="fas fa-sign-out-alt"></i> Sair
                     </button>
@@ -166,7 +165,7 @@
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
-                                    <table class="table table-hover">
+                                    <table class="table table-hover tabela-cards">
                                         <thead>
                                             <tr>
                                                 <th>Número</th>
@@ -376,7 +375,7 @@
                                             </div>
                                             <div class="card-body">
                                                 <div class="table-responsive">
-                                                    <table class="table table-striped table-hover" id="tabelaRelatorio">
+                                                    <table class="table table-striped table-hover tabela-cards" id="tabelaRelatorio">
                                                         <thead>
                                                             <tr>
                                                                 <th>Número do Processo</th>
@@ -528,6 +527,7 @@
                                 <option value="Vistoria Avulsa">Vistoria Avulsa</option>
                                 <option value="Processo finalizado">Processo finalizado</option>
                             </select>
+                            <div class="form-text text-warning d-none" id="localizacaoHint"></div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -548,7 +548,7 @@
                                     <label for="pesquisaBusca" class="form-label">Busca livre</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="fas fa-search"></i></span>
-                                        <input type="search" class="form-control" id="pesquisaBusca" placeholder="Requerente, contato, chassi, placa, número ou motivo" autocomplete="off">
+                                        <input type="search" class="form-control" id="pesquisaBusca" placeholder="Nome, chassi, placa, número..." autocomplete="off">
                                     </div>
                                 </div>
                                 <div class="col-md-3 mb-3">
@@ -605,9 +605,20 @@
                     </div>
                 </div>
                 <div id="pesquisaChips" class="d-flex flex-wrap gap-2 mb-3"></div>
+                <div class="d-md-none mb-3">
+                    <label for="pesquisaOrdenarMobile" class="form-label">Ordenar por</label>
+                    <select class="form-select" id="pesquisaOrdenarMobile">
+                        <option value="dataInicial:desc">Mais recentes</option>
+                        <option value="dataInicial:asc">Mais antigos</option>
+                        <option value="status:asc">Status (A-Z)</option>
+                        <option value="requerente:asc">Requerente (A-Z)</option>
+                        <option value="numeroProcesso:asc">Número do processo</option>
+                        <option value="localizacaoFisica:asc">Localização física</option>
+                    </select>
+                </div>
                 <div id="resultadosPesquisa">
                     <div class="table-responsive">
-                    <table class="table table-striped table-hover">
+                    <table class="table table-striped table-hover tabela-cards">
                         <thead>
                             <tr>
                                 <th class="ordenavel" data-ordenar="numeroProcesso">Número <i class="fas fa-sort"></i></th>
@@ -679,7 +690,7 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped">
+                            <table class="table table-striped tabela-cards">
                                 <thead>
                                     <tr>
                                         <th>Nome do Colaborador</th>
@@ -808,6 +819,40 @@
         </div>
     </div>
 
+    <!-- Modal Alterar Senha -->
+    <div class="modal fade" id="modalAlterarSenha" tabindex="-1" aria-labelledby="modalAlterarSenhaLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAlterarSenhaLabel">Alterar minha senha</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="alterarSenhaErro" class="alert alert-danger d-none" role="alert"></div>
+                    <form id="formAlterarSenha" onsubmit="return false;">
+                        <div class="mb-3">
+                            <label for="senhaAtual" class="form-label">Senha atual</label>
+                            <input type="password" class="form-control" id="senhaAtual" autocomplete="current-password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="senhaNova" class="form-label">Nova senha</label>
+                            <input type="password" class="form-control" id="senhaNova" autocomplete="new-password">
+                            <div class="form-text">Mínimo de 6 caracteres.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="senhaConfirmacao" class="form-label">Confirmar nova senha</label>
+                            <input type="password" class="form-control" id="senhaConfirmacao" autocomplete="new-password">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarNovaSenha">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Mensagem do Sistema -->
     <div class="modal fade" id="modalMensagem" tabindex="-1" aria-labelledby="modalMensagemLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -908,6 +953,7 @@
                                 <option value="Vistoria Avulsa">Vistoria Avulsa</option>
                                 <option value="Processo finalizado">Processo finalizado</option>
                             </select>
+                            <div class="form-text text-warning d-none" id="editarLocalizacaoHint"></div>
                         </div>
                     </form>
                 </div>
@@ -919,7 +965,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { verificarSessao, fazerLogout } from './js/auth.js';
 
@@ -1013,20 +1059,10 @@
     <script type="module" src="js/app.js"></script>
     <script type="module">
         import { criarCredencial, verificarUsuarioExistente, listarCredenciais, atualizarCredencial, testarConexaoCredenciais } from './js/credenciais.js';
+        import { verificarLogin } from './js/auth.js';
+        import { esc, mostrarMensagem } from './js/ui.js';
 
-        // Função para mostrar mensagem
-        window.mostrarMensagem = function(mensagem, tipo = 'info') {
-            const modalMensagem = document.getElementById('modalMensagem');
-            const modalMensagemTexto = document.getElementById('modalMensagemTexto');
-            const modalMensagemTitulo = document.getElementById('modalMensagemTitulo');
-
-            modalMensagemTexto.className = `alert alert-${tipo}`;
-            modalMensagemTitulo.textContent = tipo === 'danger' ? 'Erro' : 'Sucesso';
-            modalMensagemTexto.textContent = mensagem;
-
-            const modal = new bootstrap.Modal(modalMensagem);
-            modal.show();
-        };
+        window.mostrarMensagem = mostrarMensagem;
 
         // Função para testar conexão
         async function testarConexao() {
@@ -1084,17 +1120,17 @@
                 data.forEach(credencial => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${credencial.nome_colaborador}</td>
-                        <td>${credencial.usuario}</td>
-                        <td>${new Date(credencial.data_criacao).toLocaleDateString()}</td>
-                        <td>
+                        <td data-label="Colaborador">${esc(credencial.nome_colaborador)}</td>
+                        <td data-label="Usuário">${esc(credencial.usuario)}</td>
+                        <td data-label="Criação">${esc(new Date(credencial.data_criacao).toLocaleDateString('pt-BR'))}</td>
+                        <td data-label="Status">
                             <span class="badge ${credencial.status === 'ativo' ? 'bg-success' : 'bg-danger'}">
-                                ${credencial.status}
+                                ${esc(credencial.status)}
                             </span>
                         </td>
-                        <td>
+                        <td data-label="Ações">
                             <button class="btn btn-sm ${credencial.status === 'ativo' ? 'btn-danger' : 'btn-success'}"
-                                    onclick="alterarStatusCredencial(${credencial.id}, '${credencial.status}')">
+                                    onclick="alterarStatusCredencial(${Number(credencial.id)}, '${credencial.status === 'ativo' ? 'ativo' : 'inativo'}')">
                                 ${credencial.status === 'ativo' ? 'Inativar' : 'Ativar'}
                             </button>
                         </td>
@@ -1117,8 +1153,47 @@
             }
         };
 
-        // Carregar credenciais ao abrir a página
-        document.addEventListener('DOMContentLoaded', carregarCredenciais);
+        // Carregar credenciais ao abrir a página (somente administrador)
+        document.addEventListener('DOMContentLoaded', () => {
+            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado') || 'null');
+            if (logado && logado.usuario === 'admin') carregarCredenciais();
+        });
+
+        // Alterar a própria senha
+        document.getElementById('btnAlterarSenha').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('formAlterarSenha').reset();
+            document.getElementById('alterarSenhaErro').classList.add('d-none');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAlterarSenha')).show();
+        });
+
+        document.getElementById('btnSalvarNovaSenha').addEventListener('click', async () => {
+            const erro = document.getElementById('alterarSenhaErro');
+            const mostrarErro = (msg) => { erro.textContent = msg; erro.classList.remove('d-none'); };
+            erro.classList.add('d-none');
+
+            const atual = document.getElementById('senhaAtual').value;
+            const nova = document.getElementById('senhaNova').value;
+            const confirmacao = document.getElementById('senhaConfirmacao').value;
+            const logado = JSON.parse(sessionStorage.getItem('usuarioLogado'));
+
+            if (nova.length < 6) return mostrarErro('A nova senha deve ter pelo menos 6 caracteres.');
+            if (nova !== confirmacao) return mostrarErro('A confirmação não confere com a nova senha.');
+            if (nova === atual) return mostrarErro('A nova senha deve ser diferente da atual.');
+
+            try {
+                const valido = await verificarLogin(logado.usuario, atual);
+                if (!valido) return mostrarErro('Senha atual incorreta.');
+
+                const { success } = await atualizarCredencial(logado.id, { senha: nova });
+                if (!success) return mostrarErro('Não foi possível salvar a nova senha. Tente novamente.');
+
+                bootstrap.Modal.getInstance(document.getElementById('modalAlterarSenha')).hide();
+                mostrarMensagem('Senha alterada com sucesso!', 'success');
+            } catch (e) {
+                mostrarErro('Sem conexão com o servidor. Tente novamente.');
+            }
+        });
     </script>
 </body>
 </html> 

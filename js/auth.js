@@ -1,42 +1,31 @@
 import { supabase } from './supabase.js';
 
-// Função para verificar login
+// Verifica o login. Retorna o usuário, ou null se usuário/senha forem inválidos.
+// Lança erro quando não foi possível consultar o banco (ex.: sem conexão).
 async function verificarLogin(usuario, senha) {
-    try {
-        console.log('Tentando fazer login com:', usuario);
-        const { data, error } = await supabase
-            .from('credenciais')
-            .select('*')
-            .eq('usuario', usuario)
-            .eq('status', 'ativo')
-            .single();
+    const { data, error } = await supabase
+        .from('credenciais')
+        .select('*')
+        .eq('usuario', usuario)
+        .eq('status', 'ativo')
+        .maybeSingle();
 
-        if (error) {
-            console.error('Erro ao verificar login:', error);
-            throw error;
-        }
-        if (!data) {
-            console.log('Usuário não encontrado');
-            return null;
-        }
-
-        // Aqui você deve implementar a verificação da senha com hash
-        // Por enquanto, estamos usando comparação direta
-        if (data.senha === senha) {
-            console.log('Login bem-sucedido para:', usuario);
-            return {
-                id: data.id,
-                usuario: data.usuario,
-                nome: data.nome_colaborador
-            };
-        }
-
-        console.log('Senha incorreta para:', usuario);
-        return null;
-    } catch (error) {
+    if (error) {
         console.error('Erro ao verificar login:', error);
-        return null;
+        throw error;
     }
+    if (!data) return null;
+
+    // Aqui você deve implementar a verificação da senha com hash
+    // Por enquanto, estamos usando comparação direta
+    if (data.senha === senha) {
+        return {
+            id: data.id,
+            usuario: data.usuario,
+            nome: data.nome_colaborador
+        };
+    }
+    return null;
 }
 
 // Função para verificar se está logado

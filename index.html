@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRVA 0371 - Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
     <style>
         body {
@@ -80,10 +80,11 @@
                     <h4 class="mb-0">CRVA 0371 - Tramandaí/RS</h4>
                 </div>
                 <div class="card-body">
+                    <div id="loginAviso" class="alert d-none" role="alert"></div>
                     <form id="loginForm">
                         <div class="mb-3">
                             <label for="usuario" class="form-label">Usuário</label>
-                            <input type="text" class="form-control" id="usuario" required>
+                            <input type="text" class="form-control" id="usuario" required autocomplete="username" autofocus>
                         </div>
                         <div class="mb-3">
                             <label for="senha" class="form-label">Senha</label>
@@ -97,6 +98,9 @@
                         <button type="submit" class="btn btn-primary btn-login">
                             <i class="fas fa-sign-in-alt"></i> Entrar
                         </button>
+                        <div class="text-center mt-3">
+                            <a href="#" id="linkEsqueciSenha" class="small">Esqueci minha senha</a>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -107,70 +111,44 @@
         <small>&copy; Desenvolvido por Jonatan Barros</small>
     </footer>
 
-    <!-- Modal de Mensagem -->
-    <div class="modal fade" id="modalMensagem" tabindex="-1" aria-labelledby="modalMensagemLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalMensagemTitulo">Mensagem do Sistema</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="modalMensagemTexto" class="alert" role="alert">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="vendor/bootstrap/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { verificarLogin } from './js/auth.js';
         import { testarConexao, verificarTabela } from './js/supabase.js';
 
-        // Função para mostrar mensagem
-        function mostrarMensagem(mensagem, tipo = 'danger') {
-            const modalMensagem = document.getElementById('modalMensagem');
-            const modalMensagemTexto = document.getElementById('modalMensagemTexto');
-            const modalMensagemTitulo = document.getElementById('modalMensagemTitulo');
+        // Aviso dentro da própria tela de login
+        function mostrarAviso(mensagem, tipo = 'danger') {
+            const aviso = document.getElementById('loginAviso');
+            aviso.className = `alert alert-${tipo}`;
+            aviso.textContent = mensagem;
+        }
 
-            modalMensagemTexto.className = `alert alert-${tipo}`;
-            modalMensagemTitulo.textContent = tipo === 'danger' ? 'Erro' : 'Sucesso';
-            modalMensagemTexto.textContent = mensagem;
-
-            const modal = new bootstrap.Modal(modalMensagem);
-            modal.show();
+        function esconderAviso() {
+            document.getElementById('loginAviso').className = 'alert d-none';
         }
 
         // Testar conexão ao carregar a página
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                console.log('Iniciando testes de conexão...');
-                
-                // Testa a conexão geral
                 const resultadoConexao = await testarConexao();
                 if (!resultadoConexao.success) {
                     console.error('Erro na conexão com o banco:', resultadoConexao.error);
-                    mostrarMensagem('Erro na conexão com o banco de dados', 'danger');
+                    mostrarAviso('Sem conexão com o banco de dados. Verifique a internet e recarregue a página.');
                     return;
                 }
-
-                // Verifica se a tabela de credenciais existe
                 const tabelaExiste = await verificarTabela('credenciais');
                 if (!tabelaExiste) {
-                    console.error('Tabela de credenciais não encontrada');
-                    mostrarMensagem('Erro: Tabela de credenciais não encontrada', 'danger');
-                    return;
+                    mostrarAviso('Tabela de credenciais não encontrada no banco de dados.');
                 }
-
-                console.log('Todos os testes de conexão passaram com sucesso!');
             } catch (error) {
                 console.error('Erro ao testar conexão:', error);
-                mostrarMensagem('Erro ao conectar com o banco de dados', 'danger');
+                mostrarAviso('Sem conexão com o banco de dados. Verifique a internet e recarregue a página.');
             }
+        });
+
+        document.getElementById('linkEsqueciSenha').addEventListener('click', (e) => {
+            e.preventDefault();
+            mostrarAviso('Para redefinir sua senha, procure o administrador do sistema. Depois de entrar, você pode trocá-la em "Alterar minha senha".', 'info');
         });
 
         function mostrarLoading(texto = 'Carregando...') {
@@ -203,20 +181,31 @@
         // Event listener para o formulário de login
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const usuario = document.getElementById('usuario').value;
-            const senha = document.getElementById('senha').value;
+            esconderAviso();
+
+            const campoUsuario = document.getElementById('usuario');
+            const campoSenha = document.getElementById('senha');
+            const usuario = campoUsuario.value.trim();
+            const senha = campoSenha.value;
 
             mostrarLoading('Verificando credenciais...');
 
-            const usuarioEncontrado = await verificarLogin(usuario, senha);
+            try {
+                const usuarioEncontrado = await verificarLogin(usuario, senha);
 
-            if (usuarioEncontrado) {
-                sessionStorage.setItem('usuarioLogado', JSON.stringify(usuarioEncontrado));
-                window.location.href = 'dashboard.html';
-            } else {
+                if (usuarioEncontrado) {
+                    sessionStorage.setItem('usuarioLogado', JSON.stringify(usuarioEncontrado));
+                    window.location.href = 'dashboard.html';
+                    return;
+                }
+
                 esconderLoading();
-                mostrarMensagem('Usuário ou senha inválidos');
+                mostrarAviso('Usuário ou senha inválidos.');
+                campoSenha.value = '';
+                campoSenha.focus();
+            } catch (error) {
+                esconderLoading();
+                mostrarAviso('Não foi possível entrar: sem conexão com o servidor. Tente novamente.');
             }
         });
     </script>

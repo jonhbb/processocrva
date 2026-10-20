@@ -68,7 +68,7 @@ export async function listarCredenciais() {
     try {
         const { data, error } = await supabase
             .from('credenciais')
-            .select('*')
+            .select('id, nome_colaborador, usuario, data_criacao, status')
             .order('nome_colaborador');
 
         if (error) throw error;

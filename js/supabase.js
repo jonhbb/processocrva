@@ -1,5 +1,5 @@
-// Importação do Supabase usando módulos ES6 - versão específica
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+// Supabase 2.39.3 empacotado localmente em vendor/ (sem dependência de CDN)
+import { createClient } from '../vendor/supabase/supabase.js';
 
 // Configuração do Supabase
 const SUPABASE_URL = 'https://hhqzqohaxrvgpnjnoubz.supabase.co';

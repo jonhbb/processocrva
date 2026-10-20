@@ -10,6 +10,7 @@ import {
     restaurarBackup,
     testarConexao
 } from './supabase.js';
+import { esc, mostrarMensagem } from './ui.js';
 
 const ITENS_POR_PAGINA_PESQUISA = 10;
 const DIAS_ATENCAO = 30;
@@ -21,13 +22,6 @@ let pesquisaSemLocalizacao = false;
 let pesquisaOrdenacao = { campo: 'dataInicial', dir: 'desc' };
 let ultimoProcessoCadastradoId = null;
 let numeroDuplicadoId = null;
-
-// Escapa texto antes de inserir em innerHTML
-function esc(valor) {
-    return String(valor ?? '').replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
-}
 
 function hojeISO() {
     const d = new Date();
@@ -62,46 +56,31 @@ function validarData(data) {
     return dataObj instanceof Date && !isNaN(dataObj);
 }
 
-// Função para exibir mensagens do sistema
-function mostrarMensagem(mensagem, tipo = 'success') {
-    const modalMensagem = document.getElementById('modalMensagem');
-    const modalMensagemTexto = document.getElementById('modalMensagemTexto');
-    const modalMensagemTitulo = document.getElementById('modalMensagemTitulo');
+// Funções de navegação
+const PAGINAS = ['home', 'cadastro', 'pesquisa', 'relatorios', 'credenciais', 'configuracoes'];
 
-    // Configura o tipo de alerta
-    modalMensagemTexto.className = `alert alert-${tipo}`;
-    
-    // Define o título baseado no tipo
-    switch(tipo) {
-        case 'success':
-            modalMensagemTitulo.textContent = 'Sucesso';
-            break;
-        case 'danger':
-            modalMensagemTitulo.textContent = 'Erro';
-            break;
-        case 'warning':
-            modalMensagemTitulo.textContent = 'Atenção';
-            break;
-        default:
-            modalMensagemTitulo.textContent = 'Mensagem do Sistema';
-    }
-
-    // Define o texto da mensagem
-    modalMensagemTexto.textContent = mensagem;
-
-    // Exibe o modal
-    const modal = new bootstrap.Modal(modalMensagem);
-    modal.show();
+function paginaPermitida(pagina) {
+    const link = document.querySelector(`#sidebar li a[data-page="${pagina}"]`);
+    return !!link && !link.parentElement.classList.contains('d-none');
 }
 
-// Funções de navegação
-function navegarPara(pagina) {
+function navegarPara(pagina, { atualizarHash = true } = {}) {
+    if (!PAGINAS.includes(pagina) || !paginaPermitida(pagina)) pagina = 'home';
+
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(pagina).classList.add('active');
     
     document.querySelectorAll('#sidebar li').forEach(li => li.classList.remove('active'));
     document.querySelector(`#sidebar li a[data-page="${pagina}"]`).parentElement.classList.add('active');
 
+    if (atualizarHash && location.hash !== '#' + pagina) {
+        location.hash = pagina;
+    }
+    window.scrollTo(0, 0);
+
+    if (pagina === 'home') {
+        atualizarDashboard();
+    }
     if (pagina === 'pesquisa' && !pesquisaCarregada) {
         executarPesquisa({ silencioso: true });
     }
@@ -253,16 +232,16 @@ function criarLinhaTabelaPesquisa(processo) {
         ? `<span class="badge bg-danger ms-1" title="Pendente desde ${esc(formatarDataBR(processo.dataInicial))}">há ${dias} dias</span>`
         : '';
     tr.innerHTML = `
-        <td>${esc(processo.numeroProcesso) || '-'}</td>
-        <td>${esc(formatarDataBR(processo.dataInicial))}</td>
-        <td>${esc(processo.requerente)}</td>
-        <td>${esc(processo.contato) || '-'}</td>
-        <td>${esc(processo.tipoVeiculo)}</td>
-        <td>${esc(processo.placa) || '-'}</td>
-        <td><span class="badge bg-${getStatusColor(processo.status)}">${esc(processo.status)}</span>${alertaParado}</td>
-        <td>${esc(processo.motivoPendencia) || '-'}</td>
-        <td><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${esc(processo.localizacaoFisica) || '-'}</span></td>
-        <td>
+        <td data-label="Número">${esc(processo.numeroProcesso) || '-'}</td>
+        <td data-label="Data">${esc(formatarDataBR(processo.dataInicial))}</td>
+        <td data-label="Requerente">${esc(processo.requerente)}</td>
+        <td data-label="Contato">${esc(processo.contato) || '-'}</td>
+        <td data-label="Veículo">${esc(processo.tipoVeiculo)}</td>
+        <td data-label="Placa">${esc(processo.placa) || '-'}</td>
+        <td data-label="Status"><span class="badge bg-${getStatusColor(processo.status)}">${esc(processo.status)}</span>${alertaParado}</td>
+        <td data-label="Motivo">${esc(processo.motivoPendencia) || '-'}</td>
+        <td data-label="Localização"><span class="badge bg-${getLocalizacaoColor(processo.localizacaoFisica)}">${esc(processo.localizacaoFisica) || '-'}</span></td>
+        <td data-label="Ações">
             <div class="btn-group" role="group">
                 <button type="button" class="btn btn-sm btn-primary" onclick="window.abrirModalEditar(${Number(processo.id)})">
                     <i class="fas fa-edit"></i> Editar
@@ -329,12 +308,12 @@ function exibirProcessos(processos) {
     processos.forEach(processo => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${processo.numeroProcesso || '-'}</td>
-            <td>${formatarDataBR(processo.dataInicial)}</td>
-            <td>${processo.requerente}</td>
-            <td>${processo.contato || '-'}</td>
-            <td>${processo.tipoVeiculo}</td>
-            <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
+            <td>${esc(processo.numeroProcesso) || '-'}</td>
+            <td>${esc(formatarDataBR(processo.dataInicial))}</td>
+            <td>${esc(processo.requerente)}</td>
+            <td>${esc(processo.contato) || '-'}</td>
+            <td>${esc(processo.tipoVeiculo)}</td>
+            <td><span class="badge bg-${getStatusColor(processo.status)}">${esc(processo.status)}</span></td>
         `;
         tbody.appendChild(tr);
     });
@@ -371,9 +350,9 @@ window.abrirModalHistorico = function(processoId) {
             }
             
             tr.innerHTML = `
-                <td>${new Date(h.data).toLocaleString()}</td>
-                <td>${descricao}</td>
-                <td>${h.responsavel}</td>
+                <td>${esc(new Date(h.data).toLocaleString('pt-BR'))}</td>
+                <td>${esc(descricao)}</td>
+                <td>${esc(h.responsavel)}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -400,6 +379,7 @@ window.abrirModalEditar = function(processoId) {
         document.getElementById('editarMotivoPendencia').value = processo.motivoPendencia || '';
         document.getElementById('editarLocalizacaoFisica').value = processo.localizacaoFisica || '';
         document.getElementById('editarProcessoId').value = processo.id;
+        window.dispatchEvent(new Event('regra-localizacao'));
 
         // Abre o modal
         const modal = new bootstrap.Modal(document.getElementById('modalEditar'));
@@ -503,11 +483,11 @@ async function atualizarDashboard() {
         ultimosProcessos.forEach(processo => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${processo.numeroProcesso}</td>
-                <td>${formatarDataBR(processo.dataInicial)}</td>
-                <td>${processo.requerente}</td>
-                <td>${processo.tipoVeiculo}</td>
-                <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
+                <td data-label="Número">${esc(processo.numeroProcesso)}</td>
+                <td data-label="Data">${esc(formatarDataBR(processo.dataInicial))}</td>
+                <td data-label="Requerente">${esc(processo.requerente)}</td>
+                <td data-label="Veículo">${esc(processo.tipoVeiculo)}</td>
+                <td data-label="Status"><span class="badge bg-${getStatusColor(processo.status)}">${esc(processo.status)}</span></td>
             `;
             tbodyUltimos.appendChild(tr);
         });
@@ -535,7 +515,7 @@ async function atualizarDashboard() {
             elemento.className = 'list-group-item d-flex justify-content-between align-items-center';
             elemento.innerHTML = `
                 <div>
-                    <span class="badge bg-${cores[status] || 'secondary'} me-2">${status}</span>
+                    <span class="badge bg-${cores[status] || 'secondary'} me-2">${esc(status)}</span>
                     ${quantidade} processo(s)
                 </div>
                 <span class="badge bg-primary rounded-pill">${percentual}%</span>
@@ -559,7 +539,7 @@ async function atualizarDashboard() {
             elemento.innerHTML = `
                 <div>
                     <i class="fas fa-car me-2"></i>
-                    ${tipo || 'Não especificado'}
+                    ${esc(tipo) || 'Não especificado'}
                 </div>
                 <div>
                     <span class="me-3">${quantidade} processo(s)</span>
@@ -639,14 +619,14 @@ async function gerarRelatorio(processos, titulo) {
         processosPagina.forEach(processo => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${processo.numeroProcesso || '-'}</td>
-                <td>${formatarDataBR(processo.dataInicial)}</td>
-                <td>${processo.requerente}</td>
-                <td>${processo.contato || '-'}</td>
-                <td>${processo.tipoVeiculo}</td>
-                <td>${processo.placa}</td>
-                <td><span class="badge bg-${getStatusColor(processo.status)}">${processo.status}</span></td>
-                <td>${processo.motivoPendencia || '-'}</td>
+                <td data-label="Número">${esc(processo.numeroProcesso) || '-'}</td>
+                <td data-label="Data">${esc(formatarDataBR(processo.dataInicial))}</td>
+                <td data-label="Requerente">${esc(processo.requerente)}</td>
+                <td data-label="Contato">${esc(processo.contato) || '-'}</td>
+                <td data-label="Veículo">${esc(processo.tipoVeiculo)}</td>
+                <td data-label="Placa">${esc(processo.placa)}</td>
+                <td data-label="Status"><span class="badge bg-${getStatusColor(processo.status)}">${esc(processo.status)}</span></td>
+                <td data-label="Motivo">${esc(processo.motivoPendencia) || '-'}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -880,9 +860,38 @@ function formatarDataBR(dataISO) {
     return `${dia}-${mes}-${ano}`;
 }
 
+// Finalizado sugere "Processo finalizado"; combinação incoerente gera aviso
+function ligarRegraLocalizacao(statusId, localId, avisoId) {
+    const status = document.getElementById(statusId);
+    const local = document.getElementById(localId);
+    const aviso = document.getElementById(avisoId);
+
+    const verificar = () => {
+        let texto = '';
+        if (local.value === 'Processo finalizado' && status.value && status.value !== 'Finalizado') {
+            texto = `Atenção: a localização "Processo finalizado" não combina com o status ${status.value}.`;
+        } else if (status.value === 'Finalizado' && local.value && local.value !== 'Processo finalizado') {
+            texto = 'Atenção: processo finalizado, mas a localização não é "Processo finalizado".';
+        }
+        aviso.textContent = texto;
+        aviso.classList.toggle('d-none', !texto);
+    };
+
+    status.addEventListener('change', () => {
+        if (status.value === 'Finalizado' && !local.value) {
+            local.value = 'Processo finalizado';
+        }
+        verificar();
+    });
+    local.addEventListener('change', verificar);
+    // Dispara também quando o valor é preenchido por código (ex.: modal de edição)
+    window.addEventListener('regra-localizacao', verificar);
+}
+
 function prepararFormularioCadastro() {
     document.getElementById('dataInicial').value = hojeISO();
     esconderAvisoDuplicado();
+    window.dispatchEvent(new Event('regra-localizacao'));
 }
 
 function esconderAvisoDuplicado() {
@@ -928,16 +937,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         atualizarDashboard();
 
         // Navegação
-        document.querySelectorAll('#sidebar a').forEach(link => {
+        document.querySelectorAll('#sidebar a[data-page]').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                const pagina = e.target.closest('a').dataset.page;
-                navegarPara(pagina);
-                if (pagina === 'home') {
-                    atualizarDashboard();
-                }
+                navegarPara(e.target.closest('a').dataset.page);
             });
         });
+
+        // Página inicial conforme a URL (#pesquisa etc.) e botão Voltar do navegador
+        window.addEventListener('hashchange', () => {
+            const destino = location.hash.slice(1);
+            const atual = document.querySelector('.page.active');
+            if (atual && atual.id === destino) return; // já está nessa página
+            navegarPara(destino, { atualizarHash: false });
+        });
+        if (location.hash) {
+            navegarPara(location.hash.slice(1), { atualizarHash: false });
+        }
 
         // Formulário de cadastro
         prepararFormularioCadastro();
@@ -1033,6 +1049,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 renderizarTabelaPesquisaPaginada();
             });
         });
+
+        document.getElementById('pesquisaOrdenarMobile').addEventListener('change', (e) => {
+            const [campo, dir] = e.target.value.split(':');
+            pesquisaOrdenacao = { campo, dir };
+            pesquisaPaginaAtual = 1;
+            renderizarTabelaPesquisaPaginada();
+        });
+
+        // Regra: localização física x status
+        ligarRegraLocalizacao('status', 'localizacaoFisica', 'localizacaoHint');
+        ligarRegraLocalizacao('editarStatus', 'editarLocalizacaoFisica', 'editarLocalizacaoHint');
 
         // Dashboard: cards clicáveis e atalhos de atenção
         document.querySelectorAll('.card-clicavel').forEach(card => {
