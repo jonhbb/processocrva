@@ -65,6 +65,11 @@
                         <i class="fas fa-chart-bar"></i> <span class="menu-texto">Relatórios</span>
                     </a>
                 </li>
+                <li>
+                    <a href="#" data-page="fechamento" title="Fechamento do dia">
+                        <i class="fas fa-clipboard-list"></i> <span class="menu-texto">Fechamento do dia</span>
+                    </a>
+                </li>
                 <li data-somente-admin class="d-none">
                     <a href="#" data-page="credenciais" title="Credenciais">
                         <i class="fas fa-user-lock"></i> <span class="menu-texto">Credenciais</span>
@@ -295,6 +300,28 @@
                     </div>
                 </div>
 
+            </div>
+
+            <div id="fechamento" class="page">
+                <h2 class="mb-4">Fechamento do dia</h2>
+                <div class="card mb-3">
+                    <div class="card-body d-flex flex-wrap align-items-end gap-2">
+                        <div>
+                            <label for="fechamentoData" class="form-label">Data</label>
+                            <input type="date" class="form-control" id="fechamentoData">
+                        </div>
+                        <button type="button" class="btn btn-outline-primary" id="btnFechamentoHoje">Hoje</button>
+                        <button type="button" class="btn btn-outline-primary" id="btnFechamentoOntem">Ontem</button>
+                        <button type="button" class="btn btn-outline-secondary" id="btnFechamentoAtualizar" title="Atualizar"><i class="fas fa-sync-alt"></i> Atualizar</button>
+                        <div class="ms-auto d-flex gap-2">
+                            <button type="button" class="btn btn-secondary" id="btnFechamentoImprimir" disabled><i class="fas fa-print"></i> Imprimir</button>
+                            <button type="button" class="btn btn-primary" id="btnFechamentoPdf" disabled><i class="fas fa-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="fechamentoAviso" class="alert alert-danger d-none" role="alert"></div>
+                <div class="row g-2 mb-3" id="fechamentoResumo"></div>
+                <div id="fechamentoConteudo"></div>
             </div>
 
             <div id="relatorios" class="page">
