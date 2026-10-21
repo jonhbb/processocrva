@@ -1008,3 +1008,59 @@ tr.linha-destaque > td {
     width: 100%;
     height: 100%;
 }
+
+/* Fechamento do dia */
+.tile-fechamento {
+    cursor: default;
+}
+
+.tile-fechamento:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.relatorio-impressao {
+    color: #000;
+    font-size: 10pt;
+}
+
+.relatorio-impressao h2 {
+    margin: 0;
+    font-size: 15pt;
+}
+
+.relatorio-impressao h3 {
+    margin: 0.1cm 0 0.4cm;
+    font-size: 12pt;
+    font-weight: 400;
+}
+
+.relatorio-impressao h4 {
+    margin: 0.5cm 0 0.15cm;
+    font-size: 11pt;
+    border-bottom: 1px solid #000;
+}
+
+.relatorio-impressao table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.relatorio-impressao th,
+.relatorio-impressao td {
+    padding: 0.08cm 0.15cm;
+    border: 1px solid #666;
+    text-align: left;
+    vertical-align: top;
+}
+
+.relatorio-impressao .vazio,
+.relatorio-impressao .rodape {
+    font-size: 9pt;
+    color: #444;
+}
+
+.relatorio-impressao .rodape {
+    margin-top: 0.5cm;
+    text-align: right;
+}

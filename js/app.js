@@ -15,6 +15,7 @@ import {
     testarConexao
 } from './supabase.js';
 import { esc, mostrarMensagem, mostrarToast, contatoHtml, confirmar, comBotaoOcupado, normalizar } from './ui.js';
+import { abrirFechamento, iniciarFechamento } from './fechamento.js';
 import { abrirPainelProcesso, iniciarPainelProcesso, buscarAnotacoes } from './anotacoes.js';
 import { COLUNAS_EXPORT, exportarCSV, exportarPDF, imprimirEtiqueta } from './exportar.js';
 
@@ -73,7 +74,7 @@ function validarData(data) {
 }
 
 // Funções de navegação
-const PAGINAS = ['home', 'cadastro', 'pesquisa', 'relatorios', 'credenciais', 'configuracoes'];
+const PAGINAS = ['home', 'cadastro', 'pesquisa', 'fechamento', 'relatorios', 'credenciais', 'configuracoes'];
 
 function paginaPermitida(pagina) {
     const link = document.querySelector(`#sidebar li a[data-page="${pagina}"]`);
@@ -99,6 +100,9 @@ function navegarPara(pagina, { atualizarHash = true } = {}) {
     }
     if (pagina === 'pesquisa' && !pesquisaCarregada) {
         executarPesquisa({ silencioso: true });
+    }
+    if (pagina === 'fechamento') {
+        abrirFechamento();
     }
     if (pagina === 'cadastro') {
         const data = document.getElementById('dataInicial');
@@ -1685,6 +1689,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Painel do processo (anotações, lembretes, relacionados) e "Para hoje"
         iniciarPainelProcesso({ aoAbrirProcesso: abrirProcessoPorId, obterTodosProcessos });
+        iniciarFechamento();
 
         // Formulário de cadastro
         prepararFormularioCadastro();
