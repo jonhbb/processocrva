@@ -104,6 +104,17 @@ export function imprimirEtiqueta(processo) {
             <div class="etiqueta-rodape">Impresso em ${esc(new Date().toLocaleString('pt-BR'))}</div>
         </div>`;
 
+    // QR que abre o processo (a câmera do celular lê e o sistema abre direto)
+    if (window.qrcode && processo.id !== undefined) {
+        const qr = window.qrcode(0, 'M');
+        qr.addData(new URL(`dashboard.html#processo=${processo.id}`, location.href).href);
+        qr.make();
+        area.querySelector('.etiqueta-numero').insertAdjacentHTML(
+            'beforebegin',
+            `<div class="etiqueta-qr" aria-label="QR do processo">${qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true })}</div>`
+        );
+    }
+
     document.body.classList.add('imprimindo-etiqueta');
     window.addEventListener('afterprint', () => {
         document.body.classList.remove('imprimindo-etiqueta');

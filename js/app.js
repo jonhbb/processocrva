@@ -14,7 +14,8 @@ import {
     restaurarBackup,
     testarConexao
 } from './supabase.js';
-import { esc, mostrarMensagem, mostrarToast, contatoHtml, confirmar, comBotaoOcupado } from './ui.js';
+import { esc, mostrarMensagem, mostrarToast, contatoHtml, confirmar, comBotaoOcupado, normalizar } from './ui.js';
+import { abrirPainelProcesso, iniciarPainelProcesso, buscarAnotacoes } from './anotacoes.js';
 import { COLUNAS_EXPORT, exportarCSV, exportarPDF, imprimirEtiqueta } from './exportar.js';
 
 const ITENS_POR_PAGINA_PESQUISA = 10;
@@ -105,6 +106,31 @@ function navegarPara(pagina, { atualizarHash = true } = {}) {
     }
 }
 
+// Todos os processos (cache de 1 minuto): duplicidade e "relacionados" sem novas consultas
+let todosProcessosCache = { dados: [], em: 0 };
+
+async function obterTodosProcessos({ forcar = false } = {}) {
+    const recente = Date.now() - todosProcessosCache.em < 60000;
+    if (!forcar && recente && todosProcessosCache.dados.length > 0) return todosProcessosCache.dados;
+    const dados = await buscarProcessos({});
+    todosProcessosCache = { dados, em: Date.now() };
+    return dados;
+}
+
+// Abre outro processo no modal, avisando se há alterações não salvas no atual
+async function abrirProcessoPorId(id) {
+    if (editarSujo()) {
+        const ok = await confirmar({
+            titulo: 'Alterações não salvas',
+            mensagem: 'Há alterações não salvas neste processo. Abrir outro mesmo assim?',
+            textoConfirmar: 'Abrir outro',
+            perigo: true
+        });
+        if (!ok) return;
+    }
+    window.abrirModalEditar(id);
+}
+
 // Pesquisa: filtros, chips e ordenação
 const FILTROS_PESQUISA = [
     { chave: 'busca', rotulo: 'Busca', campo: 'pesquisaBusca' },
@@ -123,11 +149,6 @@ function coletarFiltrosPesquisa() {
     filtros.semLocalizacao = pesquisaSemLocalizacao;
     filtros.parados = pesquisaParados;
     return filtros;
-}
-
-// Ignora acentos, maiúsculas, espaços e pontuação ("abc 1234" encontra "ABC1234")
-function normalizar(texto) {
-    return String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function correspondeTexto(processo, filtros) {
@@ -379,6 +400,16 @@ function atualizarIndicadoresOrdenacao() {
         const icone = th.querySelector('i');
         icone.className = 'fas ' + (ativo ? (pesquisaOrdenacao.dir === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort');
     });
+}
+
+// Link do QR da etiqueta: dashboard.html#processo=ID abre o processo direto
+function abrirLinkDeProcesso() {
+    const link = /^#processo=(\d+)$/.exec(location.hash);
+    if (!link) return false;
+    navegarPara('pesquisa', { atualizarHash: false });
+    history.replaceState(null, '', location.pathname + location.search + '#pesquisa');
+    window.abrirModalEditar(Number(link[1]));
+    return true;
 }
 
 // Funções de manipulação de formulários
@@ -699,9 +730,10 @@ window.abrirModalAlterarNumero = function(processoId) {
 };
 
 window.abrirModalHistorico = function(processoId) {
-    buscarHistorico(processoId).then(historico => {
+    Promise.all([buscarHistorico(processoId), buscarAnotacoes(processoId).catch(() => [])]).then(([historico, anotacoes]) => {
         const processo = pesquisaProcessosCache.find(p => p.id === processoId);
-        renderizarLinhaDoTempo(historico, processo);
+        const notas = anotacoes.map(n => ({ tipo: 'anotacao', valor: n.texto, data: n.criada_em, responsavel: n.autor }));
+        renderizarLinhaDoTempo([...historico, ...notas], processo);
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modalHistorico')).show();
     }).catch(error => {
         mostrarMensagem('Erro ao buscar histórico: ' + error, 'danger');
@@ -730,8 +762,9 @@ window.abrirModalEditar = function(processoId) {
         document.getElementById('editarDescartarBar').classList.add('d-none');
         document.getElementById('editarDescartarBar').classList.remove('d-flex');
 
-        // Abre o modal
+        // Abre o modal (anotações, lembretes e relacionados carregam nas outras abas)
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEditar')).show();
+        abrirPainelProcesso(processo);
     }).catch(error => {
         mostrarMensagem('Erro ao buscar dados do processo: ' + error, 'danger');
     });
@@ -838,6 +871,8 @@ function descreverEventoHistorico(evento, primeiroStatus) {
             };
         case 'numero':
             return { icone: 'fa-hashtag', cor: 'secondary', titulo: `Número alterado para ${evento.valor}` };
+        case 'anotacao':
+            return { icone: 'fa-comment', cor: 'info', titulo: 'Anotação', detalhe: evento.valor };
         default: {
             const rotulo = ROTULOS_CAMPO_HISTORICO[evento.tipo] || evento.tipo;
             const fmt = v => (evento.tipo === 'data_inicial' ? formatarDataBR(v) : v) || '(vazio)';
@@ -893,6 +928,7 @@ function renderizarLinhaDoTempo(historico, processo) {
         item.innerHTML = `
             <span class="timeline-marcador bg-${info.cor}${evento.atual ? ' atual' : ''}"><i class="fas ${info.icone}"></i></span>
             <div><strong>${esc(info.titulo)}</strong>${evento.atual ? ' <span class="badge bg-primary">atual</span>' : ''}</div>
+            ${info.detalhe ? `<div class="anotacao-texto">${esc(info.detalhe)}</div>` : ''}
             <div class="small text-muted">${esc(new Date(evento.data).toLocaleString('pt-BR'))} · por ${esc(evento.responsavel || 'Sistema')}</div>
             ${etapa}
         `;
@@ -1021,7 +1057,7 @@ function renderizarGraficoMensal(processos, finalizacoes) {
 async function atualizarDashboard() {
     try {
         // Busca todos os processos
-        const processos = await buscarProcessos();
+        const processos = await obterTodosProcessos({ forcar: true });
         
         // Atualiza contadores
         document.getElementById('totalProcessos').textContent = processos.length;
@@ -1535,9 +1571,53 @@ function prepararFormularioCadastro() {
     registrarBaselineCadastro();
 }
 
+const escondedoresDuplicidade = [];
+
 function esconderAvisoDuplicado() {
     numeroDuplicadoId = null;
     document.getElementById('avisoDuplicado').classList.add('d-none');
+    escondedoresDuplicidade.forEach(esconder => esconder());
+}
+
+// Aviso de placa/chassi já cadastrado (comparação sem acento, espaço ou hífen)
+function ligarAvisoDuplicidade({ campoId, avisoId, textoId, botaoId, coluna, rotulo }) {
+    const campo = document.getElementById(campoId);
+    const aviso = document.getElementById(avisoId);
+    let alvoId = null;
+
+    const esconder = () => {
+        alvoId = null;
+        aviso.classList.add('d-none');
+    };
+    escondedoresDuplicidade.push(esconder);
+
+    campo.addEventListener('input', esconder);
+    campo.addEventListener('blur', async () => {
+        const valor = normalizar(campo.value);
+        if (valor.length < 3) {
+            esconder();
+            return;
+        }
+        try {
+            const todos = await obterTodosProcessos();
+            if (normalizar(campo.value) !== valor) return; // campo mudou durante a consulta
+            const iguais = todos.filter(p => normalizar(p[coluna]) === valor);
+            if (iguais.length === 0) {
+                esconder();
+                return;
+            }
+            alvoId = iguais[0].id;
+            const quantidade = iguais.length > 1 ? `${iguais.length} processos` : 'um processo';
+            document.getElementById(textoId).textContent =
+                `Já existe ${quantidade} com ${rotulo} ${campo.value.trim().toUpperCase()}: ${iguais[0].numeroProcesso || 'sem número'} (${iguais[0].requerente || 'sem requerente'}).`;
+            aviso.classList.remove('d-none');
+        } catch (error) {
+            console.warn('Não foi possível verificar duplicidade:', error);
+        }
+    });
+    document.getElementById(botaoId).addEventListener('click', () => {
+        if (alvoId) abrirProcessoPorId(alvoId);
+    });
 }
 
 async function verificarNumeroDuplicado() {
@@ -1593,17 +1673,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Página inicial conforme a URL (#pesquisa etc.) e botão Voltar do navegador
         window.addEventListener('hashchange', () => {
+            if (abrirLinkDeProcesso()) return;
             const destino = location.hash.slice(1);
             const atual = document.querySelector('.page.active');
             if (atual && atual.id === destino) return; // já está nessa página
             navegarPara(destino, { atualizarHash: false });
         });
-        if (location.hash) {
+        if (location.hash && !abrirLinkDeProcesso()) {
             navegarPara(location.hash.slice(1), { atualizarHash: false });
         }
 
+        // Painel do processo (anotações, lembretes, relacionados) e "Para hoje"
+        iniciarPainelProcesso({ aoAbrirProcesso: abrirProcessoPorId, obterTodosProcessos });
+
         // Formulário de cadastro
         prepararFormularioCadastro();
+
+        ligarAvisoDuplicidade({ campoId: 'placa', avisoId: 'avisoPlaca', textoId: 'avisoPlacaTexto', botaoId: 'btnAbrirPlaca', coluna: 'placa', rotulo: 'a placa' });
+        ligarAvisoDuplicidade({ campoId: 'chassi', avisoId: 'avisoChassi', textoId: 'avisoChassiTexto', botaoId: 'btnAbrirChassi', coluna: 'chassi', rotulo: 'o chassi' });
 
         const campoNumero = document.getElementById('numeroProcesso');
         campoNumero.addEventListener('input', esconderAvisoDuplicado);
@@ -1729,25 +1816,89 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Receber processo (atalho)
-        document.getElementById('formReceber').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // Aceita o número digitado, o texto de um leitor de código de barras ou o link do QR (#processo=ID)
+        const receberProcesso = async (entrada) => {
             const campo = document.getElementById('receberNumero');
-            const numero = campo.value.trim();
-            if (!numero) return;
+            const texto = String(entrada || '').trim();
+            if (!texto) return;
 
             try {
-                const existente = await buscarProcessoPorNumero(numero);
+                const link = /processo=(\d+)/.exec(texto);
+                if (link) {
+                    campo.value = '';
+                    abrirProcessoPorId(Number(link[1]));
+                    return;
+                }
+                const existente = await buscarProcessoPorNumero(texto);
                 if (existente) {
                     campo.value = '';
-                    window.abrirModalEditar(existente.id);
+                    abrirProcessoPorId(existente.id);
                 } else {
-                    document.getElementById('receberNumeroNaoEncontrado').textContent = numero;
+                    campo.value = texto;
+                    document.getElementById('receberNumeroNaoEncontrado').textContent = texto;
                     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalReceber')).show();
                 }
             } catch (error) {
-                mostrarMensagem('Erro ao buscar o processo: ' + error.message, 'danger');
+                mostrarMensagem('Erro ao buscar o processo: ' + error.message, 'danger', { tentarNovamente: () => receberProcesso(texto) });
             }
+        };
+
+        document.getElementById('formReceber').addEventListener('submit', (e) => {
+            e.preventDefault();
+            receberProcesso(document.getElementById('receberNumero').value);
         });
+
+        // Leitura de QR/código de barras pela câmera (navegadores com BarcodeDetector, em HTTPS)
+        let fluxoCamera = null;
+        let temporizadorLeitura = null;
+        const pararCamera = () => {
+            clearInterval(temporizadorLeitura);
+            if (fluxoCamera) fluxoCamera.getTracks().forEach(faixa => faixa.stop());
+            fluxoCamera = null;
+        };
+
+        document.getElementById('btnLerCodigo').addEventListener('click', async () => {
+            if (!window.isSecureContext || !navigator.mediaDevices || !('BarcodeDetector' in window)) {
+                mostrarMensagem('A leitura pela câmera não é suportada neste navegador. Use o aplicativo de câmera do celular para ler o QR da etiqueta: ele abre o processo direto.', 'info');
+                return;
+            }
+
+            const modalEl = document.getElementById('modalScanner');
+            const video = document.getElementById('scannerVideo');
+            try {
+                fluxoCamera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            } catch (error) {
+                mostrarMensagem('Não foi possível acessar a câmera. Verifique a permissão do navegador.', 'danger');
+                return;
+            }
+
+            let detector;
+            try {
+                detector = new window.BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'itf'] });
+            } catch (error) {
+                detector = new window.BarcodeDetector();
+            }
+
+            video.srcObject = fluxoCamera;
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            video.play().catch(() => {});
+
+            let lendo = false;
+            temporizadorLeitura = setInterval(async () => {
+                if (lendo) return;
+                lendo = true;
+                try {
+                    const codigos = await detector.detect(video);
+                    if (codigos.length > 0) {
+                        pararCamera();
+                        bootstrap.Modal.getInstance(modalEl).hide();
+                        receberProcesso(codigos[0].rawValue);
+                    }
+                } catch (error) { /* quadro sem imagem: tenta de novo */ }
+                lendo = false;
+            }, 300);
+        });
+        document.getElementById('modalScanner').addEventListener('hidden.bs.modal', pararCamera);
 
         document.getElementById('btnReceberCadastrar').addEventListener('click', () => {
             const modalEl = document.getElementById('modalReceber');
@@ -1849,6 +2000,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalEditarEl.addEventListener('hide.bs.modal', (e) => {
             if (!editarPermitirFechar && editarSujo()) {
                 e.preventDefault();
+                // o aviso fica na aba Dados
+                bootstrap.Tab.getOrCreateInstance(document.getElementById('tabDados')).show();
                 mostrarBarraDescartar(true);
             }
         });

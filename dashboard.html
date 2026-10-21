@@ -11,6 +11,7 @@
     <!-- Bibliotecas para PDF -->
     <script src="vendor/jspdf/jspdf.umd.min.js"></script>
     <script src="vendor/jspdf/jspdf.plugin.autotable.min.js"></script>
+    <script src="vendor/qrcode/qrcode.js"></script>
 </head>
 <body>
     <a href="#" class="visually-hidden-focusable pular-conteudo" id="pularConteudo">Pular para o conteúdo</a>
@@ -91,6 +92,7 @@
                 <form id="formReceber" class="receber-barra input-group flex-grow-1" autocomplete="off">
                     <span class="input-group-text"><i class="fas fa-inbox"></i></span>
                     <input type="text" class="form-control" id="receberNumero" placeholder="Receber processo (número + Enter)" aria-label="Número do processo a receber">
+                    <button type="button" class="btn btn-outline-secondary" id="btnLerCodigo" aria-label="Ler QR ou código de barras com a câmera" title="Ler QR ou código de barras com a câmera"><i class="fas fa-camera"></i></button>
                     <button type="submit" class="btn btn-success">Receber</button>
                 </form>
                 <!-- Sino de novidades -->
@@ -159,6 +161,20 @@
                             <div class="card-body">
                                 <h5 class="card-title">Processos Pendentes</h5>
                                 <h2 class="card-text" id="processosPendentes">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Para hoje (lembretes) -->
+                <div class="row mb-4 d-none" id="blocoParaHoje">
+                    <div class="col-md-12">
+                        <div class="card border-primary">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0"><i class="fas fa-calendar-check"></i> Para hoje <span class="badge bg-primary" id="paraHojeTotal">0</span></h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="listaParaHoje" class="list-group list-group-flush"></div>
                             </div>
                         </div>
                     </div>
@@ -636,11 +652,19 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="placa" class="form-label">Placa</label>
-                            <input type="text" class="form-control" id="placa">
+                            <input type="text" class="form-control" id="placa" autocomplete="off">
+                            <div id="avisoPlaca" class="alert alert-warning py-2 px-3 mt-2 mb-0 d-none" role="alert">
+                                <i class="fas fa-exclamation-triangle"></i> <span id="avisoPlacaTexto"></span>
+                                <button type="button" class="btn btn-sm btn-warning ms-2" id="btnAbrirPlaca">Abrir</button>
+                            </div>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label for="chassi" class="form-label">Chassi</label>
-                            <input type="text" class="form-control" id="chassi">
+                            <input type="text" class="form-control" id="chassi" autocomplete="off">
+                            <div id="avisoChassi" class="alert alert-warning py-2 px-3 mt-2 mb-0 d-none" role="alert">
+                                <i class="fas fa-exclamation-triangle"></i> <span id="avisoChassiTexto"></span>
+                                <button type="button" class="btn btn-sm btn-warning ms-2" id="btnAbrirChassi">Abrir</button>
+                            </div>
                         </div>
                     </div>
 
@@ -1090,6 +1114,14 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3" id="abasProcesso" role="tablist">
+                        <li class="nav-item" role="presentation"><button class="nav-link active" id="tabDados" data-bs-toggle="tab" data-bs-target="#abaDados" type="button" role="tab" aria-controls="abaDados" aria-selected="true">Dados</button></li>
+                        <li class="nav-item" role="presentation"><button class="nav-link" id="tabAnotacoes" data-bs-toggle="tab" data-bs-target="#abaAnotacoes" type="button" role="tab" aria-controls="abaAnotacoes" aria-selected="false">Anotações <span class="badge bg-secondary" id="contAnotacoes">0</span></button></li>
+                        <li class="nav-item" role="presentation"><button class="nav-link" id="tabLembretes" data-bs-toggle="tab" data-bs-target="#abaLembretes" type="button" role="tab" aria-controls="abaLembretes" aria-selected="false">Lembretes <span class="badge bg-secondary" id="contLembretes">0</span></button></li>
+                        <li class="nav-item" role="presentation"><button class="nav-link" id="tabRelacionados" data-bs-toggle="tab" data-bs-target="#abaRelacionados" type="button" role="tab" aria-controls="abaRelacionados" aria-selected="false">Relacionados <span class="badge bg-secondary" id="contRelacionados">0</span></button></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="abaDados" role="tabpanel" aria-labelledby="tabDados">
                     <div id="editarDescartarBar" class="alert alert-warning d-none align-items-center justify-content-between flex-wrap gap-2" role="alert">
                         <span><i class="fas fa-exclamation-triangle"></i> Há alterações não salvas.</span>
                         <span>
@@ -1173,10 +1205,66 @@
                             <div class="form-text text-warning d-none" id="editarLocalizacaoHint"></div>
                         </div>
                     </form>
+                        </div>
+
+                        <div class="tab-pane fade" id="abaAnotacoes" role="tabpanel" aria-labelledby="tabAnotacoes">
+                            <div id="anotacoesAviso" class="alert alert-warning d-none" role="alert"></div>
+                            <form id="formAnotacao" class="mb-3">
+                                <label for="novaAnotacao" class="form-label">Nova anotação</label>
+                                <textarea class="form-control" id="novaAnotacao" rows="2" maxlength="1000" placeholder="Ex.: liguei para o requerente, aguarda documento"></textarea>
+                                <div class="mt-2"><button type="submit" class="btn btn-primary btn-sm" id="btnAddAnotacao">Adicionar anotação</button></div>
+                            </form>
+                            <div id="listaAnotacoes"></div>
+                        </div>
+
+                        <div class="tab-pane fade" id="abaLembretes" role="tabpanel" aria-labelledby="tabLembretes">
+                            <div id="lembretesAviso" class="alert alert-warning d-none" role="alert"></div>
+                            <form id="formLembrete" class="row g-2 mb-3 align-items-end">
+                                <div class="col-md-4">
+                                    <label for="lembreteData" class="form-label">Lembrar em</label>
+                                    <input type="date" class="form-control" id="lembreteData">
+                                </div>
+                                <div class="col-md-8">
+                                    <label for="lembreteTexto" class="form-label">O que lembrar (opcional)</label>
+                                    <input type="text" class="form-control" id="lembreteTexto" maxlength="200" placeholder="Ex.: retornar contato">
+                                </div>
+                                <div class="col-12 d-flex flex-wrap align-items-center gap-1">
+                                    <span class="small text-muted me-1">Atalhos:</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-lembrete-dias="1">Amanhã</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-lembrete-dias="3">Em 3 dias</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-lembrete-dias="7">Em 1 semana</button>
+                                    <button type="submit" class="btn btn-primary btn-sm ms-auto" id="btnAddLembrete">Criar lembrete</button>
+                                </div>
+                                <div class="form-text">O lembrete é seu: aparece no sino e em "Para hoje" a partir da data escolhida.</div>
+                            </form>
+                            <div id="listaLembretes"></div>
+                        </div>
+
+                        <div class="tab-pane fade" id="abaRelacionados" role="tabpanel" aria-labelledby="tabRelacionados">
+                            <p class="text-muted small">Outros processos com o mesmo requerente, placa ou chassi.</p>
+                            <div id="listaRelacionados"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="btnSalvarEdicao">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal leitura por câmera -->
+    <div class="modal fade" id="modalScanner" tabindex="-1" aria-labelledby="modalScannerTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalScannerTitulo"><i class="fas fa-camera"></i> Ler etiqueta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <video id="scannerVideo" class="scanner-video" playsinline muted></video>
+                    <p class="small text-muted mt-2 mb-0" id="scannerStatus">Aponte a câmera para o QR ou código de barras da etiqueta.</p>
                 </div>
             </div>
         </div>
@@ -1253,6 +1341,9 @@
         function verificarAutenticacao() {
             if (!verificarSessao()) {
                 console.log('Usuário não autenticado, redirecionando para login...');
+                try {
+                    sessionStorage.setItem('destinoPosLogin', location.hash);
+                } catch (e) { /* ignora */ }
                 window.location.replace('index.html');
                 return;
             }
