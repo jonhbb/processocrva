@@ -10,6 +10,8 @@ Sistema web interno para controlar os processos de vistoria veicular pendentes d
 - **Pesquisa** com busca livre (número, requerente, contato, placa, chassi e motivo), filtros por tipo, status e localização física, busca ao digitar, chips de filtros ativos, ordenação por coluna e destaque em vermelho para pendentes há 30+ dias. No celular a tabela vira cards.
 - **Receber processo**: campo no topo de todas as telas; digite o número e Enter para abrir o processo, ou cadastrá-lo se ainda não existir.
 - **Ações rápidas na pesquisa**: menu ⋮ em cada linha para mover de localização, alterar status ou duplicar; seleção de vários processos para mover/alterar em lote.
+- **Anotações e lembretes no processo**: o modal do processo tem abas Dados, Anotações, Lembretes e Relacionados. Os lembretes de retorno (seus) aparecem no sino e no bloco "Para hoje" do dashboard a partir da data. "Relacionados" lista outros processos com o mesmo requerente, placa ou chassi, e o cadastro avisa quando a placa ou o chassi já existem.
+- **QR na etiqueta e leitura pela câmera**: a etiqueta impressa tem um QR que abre o processo (também funciona lendo com o aplicativo de câmera do celular). O botão de câmera ao lado de "Receber" lê QR e códigos de barras em navegadores com suporte (HTTPS); leitores de código de barras USB funcionam no campo "Receber".
 - **Histórico** em linha do tempo: toda alteração (status, localização, número, requerente, contato, veículo, motivo...) com valor anterior → novo, responsável (colaborador logado) e tempo em cada etapa.
 - **Relatórios** por período, status e veículo, com exportação em PDF/CSV.
 - **Configurações** (somente administrador): prazo de atenção (dias) para processos pendentes, backup e restauração dos dados.
@@ -29,7 +31,7 @@ Sistema web interno para controlar os processos de vistoria veicular pendentes d
 
 - HTML5, CSS3 e JavaScript (módulos ES), sem etapa de build
 - [Supabase](https://supabase.com) (PostgreSQL) como banco de dados
-- Bootstrap 5.3.0, Font Awesome 6.0.0, jsPDF 2.5.1 e jsPDF-AutoTable 3.5.29
+- Bootstrap 5.3.0, Font Awesome 6.0.0, jsPDF 2.5.1, jsPDF-AutoTable 3.5.29 e qrcode-generator 1.4.4
 - Todas as bibliotecas ficam na pasta `vendor/`, **sem dependência de CDN**: o sistema só precisa de internet para falar com o Supabase.
 
 ## Como executar
@@ -45,7 +47,7 @@ Para publicar, copie a pasta para qualquer hospedagem estática (ou servidor com
 
 ### Banco de dados
 
-As tabelas `processos`, `historico`, `credenciais` e `configuracoes` ficam no Supabase. O script `credenciais.sql` cria a tabela de credenciais e o usuário `admin` inicial; o `perfis_e_novidades.sql` adiciona os perfis e as tabelas do sino (troque `SEU_USUARIO` para definir o programador); o `configuracoes.sql` cria a tabela de configurações (prazo de atenção; sem ela o sistema usa 30 dias) — **troque a senha padrão** no primeiro acesso (menu lateral > Alterar minha senha).
+As tabelas `processos`, `historico`, `credenciais` e `configuracoes` ficam no Supabase. O script `credenciais.sql` cria a tabela de credenciais e o usuário `admin` inicial; o `perfis_e_novidades.sql` adiciona os perfis e as tabelas do sino (troque `SEU_USUARIO` para definir o programador); o `anotacoes_e_lembretes.sql` cria as tabelas de anotações e lembretes; o `configuracoes.sql` cria a tabela de configurações (prazo de atenção; sem ela o sistema usa 30 dias) — **troque a senha padrão** no primeiro acesso (menu lateral > Alterar minha senha).
 
 A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
 
@@ -58,6 +60,7 @@ A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
 ├── credenciais.sql     # Tabela de credenciais e usuário inicial
 ├── configuracoes.sql   # Tabela de configurações (prazo de atenção)
 ├── perfis_e_novidades.sql # Perfis de usuário e tabelas do sino de novidades
+├── anotacoes_e_lembretes.sql # Tabelas de anotações e lembretes dos processos
 ├── css/style.css       # Estilos da aplicação
 ├── js/
 │   ├── app.js          # Lógica principal (cadastro, pesquisa, dashboard, relatórios)
@@ -65,6 +68,7 @@ A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
 │   ├── credenciais.js  # Gestão de credenciais
 │   ├── sessao.js       # Sessão, perfis e inatividade
 │   ├── novidades.js    # Sino de novidades e publicação
+│   ├── anotacoes.js    # Anotações, lembretes e processos relacionados
 │   ├── exportar.js     # Exportação CSV/PDF e etiqueta
 │   ├── aparencia.js    # Tema, tamanho de letra e menu recolhido
 │   ├── atalhos.js      # Atalhos de teclado

@@ -2,6 +2,7 @@
 import { supabase } from './supabase.js';
 import { esc, mostrarToast, mostrarMensagem, confirmar, comBotaoOcupado } from './ui.js';
 import { obterUsuarioLogado } from './sessao.js';
+import { buscarLembretesDoDia, concluirLembrete } from './anotacoes.js';
 
 const TIPOS = {
     novidade: { rotulo: 'Novidade', icone: 'fa-star', cor: 'primary' },
@@ -12,6 +13,7 @@ const TIPOS = {
 const INTERVALO_ATUALIZACAO_MS = 5 * 60 * 1000;
 
 let itens = [];
+let lembretes = [];
 let lidas = new Set();
 let falhaCarregamento = false;
 let expandidoId = null;
@@ -64,20 +66,30 @@ async function carregar() {
     lidas = new Set((leituras.data || []).map(l => l.novidade_id));
 }
 
+// Lembretes de retorno que venceram ou vencem hoje (falha silenciosa se a tabela ainda não existe)
+async function carregarLembretes() {
+    try {
+        lembretes = await buscarLembretesDoDia();
+    } catch (error) {
+        lembretes = [];
+    }
+}
+
 function naoLidas() {
     return itens.filter(item => !lidas.has(item.id));
 }
 
 function renderizarSino() {
     const pendentes = naoLidas();
+    const total = pendentes.length + lembretes.length;
     const contagem = document.getElementById('sinoContagem');
-    contagem.textContent = pendentes.length > 99 ? '99+' : String(pendentes.length);
-    contagem.classList.toggle('d-none', pendentes.length === 0);
+    contagem.textContent = total > 99 ? '99+' : String(total);
+    contagem.classList.toggle('d-none', total === 0);
 
     const botao = document.getElementById('btnSino');
-    const temImportante = pendentes.some(item => item.tipo === 'importante');
+    const temImportante = pendentes.some(item => item.tipo === 'importante') || lembretes.some(l => l.atraso > 0);
     botao.classList.toggle('sino-importante', temImportante);
-    const rotulo = pendentes.length > 0 ? `Novidades: ${pendentes.length} não lida(s)` : 'Novidades';
+    const rotulo = total > 0 ? `Novidades e lembretes: ${total} pendente(s)` : 'Novidades';
     botao.setAttribute('aria-label', rotulo);
     botao.title = rotulo;
 
@@ -86,11 +98,32 @@ function renderizarSino() {
     const lista = document.getElementById('listaNovidades');
     lista.innerHTML = '';
 
+    lembretes.forEach(lembrete => {
+        const situacao = lembrete.atraso > 0 ? `vencido há ${lembrete.atraso} dia(s)` : 'para hoje';
+        const elemento = document.createElement('div');
+        elemento.className = 'novidade-item nao-lida';
+        elemento.dataset.lembrete = lembrete.id;
+        elemento.dataset.processo = lembrete.processo_id;
+        elemento.setAttribute('role', 'listitem');
+        elemento.innerHTML = `
+            <span class="novidade-icone bg-${lembrete.atraso > 0 ? 'danger' : 'primary'}"><i class="fas fa-calendar-check"></i></span>
+            <div class="novidade-corpo">
+                <div class="novidade-titulo">Lembrete: ${esc(lembrete.texto) || 'retornar'}</div>
+                <div class="novidade-rodape small text-muted">Processo ${esc(lembrete.numero) || '(sem número)'} - ${esc(lembrete.requerente)} · ${esc(situacao)}</div>
+                <div class="mt-1 d-flex gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-acao="abrir-processo">Abrir</button>
+                    <button type="button" class="btn btn-sm btn-outline-success" data-acao="concluir-lembrete">Concluir</button>
+                </div>
+            </div>`;
+        lista.appendChild(elemento);
+    });
+
+    if (falhaCarregamento && lembretes.length > 0) return;
     if (falhaCarregamento) {
         lista.innerHTML = '<div class="p-3 text-muted small">Não foi possível carregar as novidades agora. Tente novamente mais tarde.</div>';
         return;
     }
-    if (itens.length === 0) {
+    if (itens.length === 0 && lembretes.length === 0) {
         lista.innerHTML = '<div class="p-4 text-center text-muted"><i class="fas fa-bell-slash fa-2x mb-2"></i><p class="mb-0">Nenhuma novidade por enquanto.</p></div>';
         return;
     }
@@ -145,6 +178,7 @@ async function atualizarSino() {
     } catch (error) {
         falhaCarregamento = true;
     }
+    await carregarLembretes();
     renderizarSino();
 }
 
@@ -156,10 +190,22 @@ export function iniciarSino() {
         popperConfig: cfg => ({ ...cfg, strategy: 'fixed' })
     });
 
-    painel.addEventListener('click', (e) => {
+    painel.addEventListener('click', async (e) => {
         const alvo = e.target.closest('[data-acao]');
         if (!alvo) return;
-        const id = Number(alvo.closest('.novidade-item').dataset.id);
+        const linha = alvo.closest('.novidade-item');
+
+        if (linha.dataset.lembrete) {
+            if (alvo.dataset.acao === 'abrir-processo') {
+                bootstrap.Dropdown.getInstance(document.getElementById('btnSino')).hide();
+                window.abrirModalEditar(Number(linha.dataset.processo));
+            } else if (alvo.dataset.acao === 'concluir-lembrete') {
+                await concluirLembrete(Number(linha.dataset.lembrete));
+            }
+            return;
+        }
+
+        const id = Number(linha.dataset.id);
 
         if (alvo.dataset.acao === 'lida') {
             marcarLidas([id]);
@@ -174,6 +220,7 @@ export function iniciarSino() {
         marcarLidas(naoLidas().map(item => item.id));
     });
 
+    window.addEventListener('lembretes-alterados', atualizarSino);
     atualizarSino();
     setInterval(atualizarSino, INTERVALO_ATUALIZACAO_MS);
     document.addEventListener('visibilitychange', () => {

@@ -134,9 +134,20 @@
             document.getElementById('loginAviso').className = 'alert d-none';
         }
 
+        // Link de processo (QR da etiqueta) aberto sem login: volta para ele depois de entrar
+        function destinoPosLogin() {
+            try {
+                const destino = sessionStorage.getItem('destinoPosLogin') || '';
+                sessionStorage.removeItem('destinoPosLogin');
+                return /^#processo=\d+$/.test(destino) ? destino : '';
+            } catch (e) {
+                return '';
+            }
+        }
+
         // Já conectado neste computador: vai direto ao sistema
         if (obterUsuarioLogado()) {
-            window.location.replace('dashboard.html');
+            window.location.replace('dashboard.html' + destinoPosLogin());
         }
 
         if (new URLSearchParams(location.search).get('motivo') === 'expirada') {
@@ -211,7 +222,7 @@
 
                 if (usuarioEncontrado) {
                     salvarSessao(usuarioEncontrado, document.getElementById('manterConectado').checked);
-                    window.location.href = 'dashboard.html';
+                    window.location.href = 'dashboard.html' + destinoPosLogin();
                     return;
                 }
 
