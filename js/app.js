@@ -16,6 +16,8 @@ import {
 } from './supabase.js';
 import { esc, mostrarMensagem, mostrarToast, contatoHtml, confirmar, comBotaoOcupado, normalizar } from './ui.js';
 import { abrirFechamento, iniciarFechamento } from './fechamento.js';
+import { iniciarAjuda } from './ajuda.js';
+import { agendarTourDePrimeiroAcesso } from './tour.js';
 import { abrirPainelProcesso, iniciarPainelProcesso, buscarAnotacoes } from './anotacoes.js';
 import { COLUNAS_EXPORT, exportarCSV, exportarPDF, imprimirEtiqueta } from './exportar.js';
 
@@ -74,7 +76,7 @@ function validarData(data) {
 }
 
 // Funções de navegação
-const PAGINAS = ['home', 'cadastro', 'pesquisa', 'fechamento', 'relatorios', 'credenciais', 'configuracoes'];
+const PAGINAS = ['home', 'cadastro', 'pesquisa', 'fechamento', 'relatorios', 'ajuda', 'credenciais', 'configuracoes'];
 
 function paginaPermitida(pagina) {
     const link = document.querySelector(`#sidebar li a[data-page="${pagina}"]`);
@@ -1658,6 +1660,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Ajuda (perguntas frequentes) antes das configurações, para o prazo de atenção aparecer nas respostas
+        iniciarAjuda();
+
         // Configurações (prazo de atenção) antes de desenhar o dashboard
         await carregarConfiguracoes();
 
@@ -1690,6 +1695,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Painel do processo (anotações, lembretes, relacionados) e "Para hoje"
         iniciarPainelProcesso({ aoAbrirProcesso: abrirProcessoPorId, obterTodosProcessos });
         iniciarFechamento();
+        agendarTourDePrimeiroAcesso();
 
         // Formulário de cadastro
         prepararFormularioCadastro();

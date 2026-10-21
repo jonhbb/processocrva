@@ -13,6 +13,7 @@ Sistema web interno para controlar os processos de vistoria veicular pendentes d
 - **Anotações e lembretes no processo**: o modal do processo tem abas Dados, Anotações, Lembretes e Relacionados. Os lembretes de retorno (seus) aparecem no sino e no bloco "Para hoje" do dashboard a partir da data. "Relacionados" lista outros processos com o mesmo requerente, placa ou chassi, e o cadastro avisa quando a placa ou o chassi já existem.
 - **QR na etiqueta e leitura pela câmera**: a etiqueta impressa tem um QR que abre o processo (também funciona lendo com o aplicativo de câmera do celular). O botão de câmera ao lado de "Receber" lê QR e códigos de barras em navegadores com suporte (HTTPS); leitores de código de barras USB funcionam no campo "Receber".
 - **Fechamento do dia**: tela (menu lateral) com o que entrou, mudou de local, foi finalizado ou teve o status alterado em uma data (hoje, ontem ou qualquer outra), com quem fez e a que horas; imprime e gera PDF para conferência e passagem de turno.
+- **Ajuda dentro do sistema**: tela Ajuda (menu lateral) com perguntas frequentes agrupadas e busca, atalhos para as telas citadas e botão para refazer o **tour guiado**, que abre sozinho no primeiro acesso de cada usuário em cada navegador.
 - **Histórico** em linha do tempo: toda alteração (status, localização, número, requerente, contato, veículo, motivo...) com valor anterior → novo, responsável (colaborador logado) e tempo em cada etapa.
 - **Relatórios** por período, status e veículo, com exportação em PDF/CSV.
 - **Configurações** (somente administrador): prazo de atenção (dias) para processos pendentes, backup e restauração dos dados.
@@ -71,6 +72,8 @@ A URL e a chave pública (anon) do projeto ficam em `js/supabase.js`.
 │   ├── novidades.js    # Sino de novidades e publicação
 │   ├── anotacoes.js    # Anotações, lembretes e processos relacionados
 │   ├── fechamento.js   # Fechamento do dia (tela, impressão e PDF)
+│   ├── ajuda.js        # Central de ajuda (perguntas frequentes e busca)
+│   ├── tour.js         # Tour guiado de primeiro acesso
 │   ├── exportar.js     # Exportação CSV/PDF e etiqueta
 │   ├── aparencia.js    # Tema, tamanho de letra e menu recolhido
 │   ├── atalhos.js      # Atalhos de teclado
