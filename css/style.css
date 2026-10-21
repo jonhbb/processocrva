@@ -957,3 +957,186 @@ tr.linha-destaque > td {
 .novidade-lida {
     flex-shrink: 0;
 }
+
+/* Abas do processo, anotações e lembretes */
+.item-anotacao,
+.item-lembrete,
+.item-relacionado {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.item-anotacao .anotacao-texto {
+    white-space: pre-line;
+}
+
+.item-lembrete.concluido {
+    opacity: 0.6;
+}
+
+.item-lembrete.vencido {
+    border-color: #dc3545;
+    background: rgba(220, 53, 69, 0.06);
+}
+
+.item-lembrete.hoje {
+    border-color: #4e73df;
+    background: rgba(78, 115, 223, 0.06);
+}
+
+.scanner-video {
+    width: 100%;
+    max-height: 60vh;
+    border-radius: 0.5rem;
+    background: #000;
+}
+
+#abasProcesso .badge {
+    font-size: 0.7em;
+}
+
+.etiqueta-qr {
+    float: right;
+    width: 2.6cm;
+    height: 2.6cm;
+    margin: 0 0 0.2cm 0.3cm;
+}
+
+.etiqueta-qr svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Fechamento do dia */
+.tile-fechamento {
+    cursor: default;
+}
+
+.tile-fechamento:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.relatorio-impressao {
+    color: #000;
+    font-size: 10pt;
+}
+
+.relatorio-impressao h2 {
+    margin: 0;
+    font-size: 15pt;
+}
+
+.relatorio-impressao h3 {
+    margin: 0.1cm 0 0.4cm;
+    font-size: 12pt;
+    font-weight: 400;
+}
+
+.relatorio-impressao h4 {
+    margin: 0.5cm 0 0.15cm;
+    font-size: 11pt;
+    border-bottom: 1px solid #000;
+}
+
+.relatorio-impressao table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.relatorio-impressao th,
+.relatorio-impressao td {
+    padding: 0.08cm 0.15cm;
+    border: 1px solid #666;
+    text-align: left;
+    vertical-align: top;
+}
+
+.relatorio-impressao .vazio,
+.relatorio-impressao .rodape {
+    font-size: 9pt;
+    color: #444;
+}
+
+.relatorio-impressao .rodape {
+    margin-top: 0.5cm;
+    text-align: right;
+}
+
+/* Tour guiado */
+.tour-raiz {
+    position: fixed;
+    inset: 0;
+    z-index: 10005;
+}
+
+.tour-destaque {
+    position: fixed;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 0 3px #4e73df;
+    pointer-events: none;
+    transition: top 0.2s, left 0.2s, width 0.2s, height 0.2s;
+}
+
+.tour-raiz.sem-alvo::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.tour-cartao {
+    position: fixed;
+    width: min(340px, calc(100vw - 24px));
+    padding: 1rem;
+    border-radius: 0.6rem;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
+}
+
+.tour-raiz.sem-alvo .tour-cartao {
+    transform: translate(-50%, -50%);
+}
+
+.tour-titulo {
+    margin-bottom: 0.35rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.tour-texto {
+    font-size: 0.92rem;
+}
+
+.tour-rodape {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+}
+
+.tour-contador {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+}
+
+/* Ajuda */
+.ajuda-grupo h5 {
+    color: #4e73df;
+}
+
+[data-bs-theme="dark"] .ajuda-grupo h5 {
+    color: #8fa8ff;
+}
+
+.accordion-body p:last-child,
+.accordion-body ul:last-child,
+.accordion-body ol:last-child {
+    margin-bottom: 0;
+}

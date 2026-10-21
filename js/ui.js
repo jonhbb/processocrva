@@ -7,6 +7,11 @@ export function esc(valor) {
     }[c]));
 }
 
+// Ignora acentos, maiúsculas, espaços e pontuação ("abc 1234" == "ABC1234")
+export function normalizar(texto) {
+    return String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 // Aviso rápido que some sozinho (sucesso, informação, atenção).
 // Opcionalmente com uma ação, como "Desfazer": mostrarToast(msg, tipo, { acao: { rotulo, aoClicar }, duracao })
 export function mostrarToast(mensagem, tipo = 'success', { acao = null, duracao = null } = {}) {
